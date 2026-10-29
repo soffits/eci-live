@@ -1,0 +1,48 @@
+[project]
+name = "eci-live"
+version = "0.1.0"
+description = "Scheduled, transparent refit of the Epoch Capabilities Index"
+readme = "README.md"
+license = "AGPL-3.0-only"
+authors = [{ name = "Sakina" }]
+requires-python = ">=3.13"
+dependencies = [
+    "eci @ git+https://github.com/epoch-research/eci-public@e937446cd8ac0e910ea578516b1cab2b00c06d25",
+    "pandas>=3.0",
+]
+
+[project.scripts]
+eci-live = "eci_live.cli:main"
+
+[dependency-groups]
+dev = [
+    "mypy>=2.4",
+    "pandas-stubs>=3.0",
+    "pytest>=8.4",
+    "ruff>=0.17",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF", "PTH", "N"]
+
+[tool.mypy]
+strict = true
+files = ["src", "tests"]
+
+[[tool.mypy.overrides]]
+module = ["eci", "eci.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
