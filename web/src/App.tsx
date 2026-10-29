@@ -219,7 +219,7 @@ export function App({ data }: { data: Promise<SiteData> }) {
                   </Group>
                   <Text size="xs" c="dimmed" mb="sm" className={classes.balance}>
                     {topView === "current"
-                      ? `A model is hidden once its lab releases a newer one with an ECI at least as high (${hidden} hidden; ranks count every model).`
+                      ? `A model is hidden once its lab releases a newer one in the same line (same name without the version) with an ECI at least as high (${hidden} hidden; ranks count every model).`
                       : "Every model, including ones their lab has since matched or beaten."}
                   </Text>
                   <Box mb="sm">
