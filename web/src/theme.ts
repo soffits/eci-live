@@ -10,13 +10,20 @@ import {
   type CSSVariablesResolver,
   createTheme,
   Drawer,
+  Input,
   MultiSelect,
+  Pill,
+  Progress,
+  RangeSlider,
   SegmentedControl,
   TextInput,
   Tooltip,
 } from "@mantine/core";
 
 const font = "'Geist Variable', ui-sans-serif, system-ui, sans-serif";
+
+/** Marks interface chrome as not selectable; the rule lives in global.css. */
+const chrome = "chrome";
 
 export const theme = createTheme({
   fontFamily: font,
@@ -28,14 +35,23 @@ export const theme = createTheme({
   components: {
     // Links take the size of the text around them.
     Anchor: Anchor.extend({ defaultProps: { inherit: true } }),
-    Badge: Badge.extend({ defaultProps: { radius: "xl" } }),
+    Badge: Badge.extend({ defaultProps: { radius: "xl" }, classNames: { root: chrome } }),
     Button: Button.extend({ defaultProps: { radius: "xl" } }),
     Chip: Chip.extend({ defaultProps: { radius: "xl" } }),
     ActionIcon: ActionIcon.extend({ defaultProps: { radius: "xl" } }),
-    Tooltip: Tooltip.extend({ defaultProps: { withArrow: true } }),
+    Tooltip: Tooltip.extend({ defaultProps: { withArrow: true }, classNames: { tooltip: chrome } }),
     TextInput: TextInput.extend({ defaultProps: { radius: "xl" } }),
     MultiSelect: MultiSelect.extend({ defaultProps: { radius: "xl" } }),
-    SegmentedControl: SegmentedControl.extend({ defaultProps: { radius: "xl" } }),
+    SegmentedControl: SegmentedControl.extend({
+      defaultProps: { radius: "xl" },
+      classNames: { root: chrome },
+    }),
+    Pill: Pill.extend({ classNames: { root: chrome } }),
+    // Typing and selecting inside a field still works: an editable element's
+    // `user-select: auto` computes to `contain`. The field just stays out of page selections.
+    Input: Input.extend({ classNames: { wrapper: chrome } }),
+    Progress: Progress.extend({ classNames: { label: chrome } }),
+    RangeSlider: RangeSlider.extend({ classNames: { label: chrome, markLabel: chrome } }),
     // `size="sheet"` resolves to --drawer-size-sheet below: a bottom sheet as tall as its content.
     Drawer: Drawer.extend({ defaultProps: { radius: "lg" } }),
   },
@@ -47,20 +63,22 @@ export const cssVariablesResolver: CSSVariablesResolver = () => ({
   },
   light: {
     "--mantine-color-body": "#f4f4f7",
-    "--mantine-color-dimmed": "#5f6170",
+    "--mantine-color-dimmed": "#515364",
     "--mantine-color-placeholder": "var(--mantine-color-gray-6)",
     "--eci-surface": "#ffffff",
     "--eci-hero-surface": "#ffffff",
     "--eci-page-dots": "rgb(15 23 42 / 7%)",
-    "--eci-capsule-opacity": "0.4",
+    "--eci-capsule-opacity": "0.45",
+    "--eci-dot-ring": "#ffffff",
   },
   dark: {
     "--mantine-color-body": "#0a0b0e",
-    "--mantine-color-dimmed": "#a9abb8",
+    "--mantine-color-dimmed": "#bcbecb",
     "--mantine-color-placeholder": "var(--mantine-color-dark-1)",
     "--eci-surface": "#121317",
     "--eci-hero-surface": "#15161b",
     "--eci-page-dots": "rgb(255 255 255 / 6%)",
-    "--eci-capsule-opacity": "0.5",
+    "--eci-capsule-opacity": "0.72",
+    "--eci-dot-ring": "#f8fafc",
   },
 });

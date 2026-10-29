@@ -20,3 +20,12 @@ body {
 .num {
   font-variant-numeric: tabular-nums;
 }
+
+/* Interface chrome is not text to copy: no selection highlight on click or drag. Semantic
+   chrome is matched by element; Mantine parts without one get `.chrome` from theme.ts, and
+   Recharts tooltips from their `wrapperStyle`. Content (table cells, code, links, prose)
+   keeps the default. `:where` keeps this at zero specificity. */
+:where(button, label, thead, header, svg, [role="tooltip"], [role="option"], .chrome) {
+  -webkit-user-select: none;
+  user-select: none;
+}

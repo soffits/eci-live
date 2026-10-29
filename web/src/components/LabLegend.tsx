@@ -1,28 +1,34 @@
 import { Chip, ColorSwatch, Group } from "@mantine/core";
+import { hasLabColor } from "../config";
+import { legendEntries } from "../legend";
 import { useLabColor } from "./LabLogo";
 
 interface Props {
   labs: string[];
   selected: string[];
-  onToggle: (lab: string) => void;
+  onToggle: (labs: string[]) => void;
 }
 
-/** Colour key for the lab colours; clicking a lab toggles it in the shared lab filter. */
+/** Colour key for the lab colours, one chip per colour drawn; a chip toggles its labs in
+ * the shared lab filter. */
 export function LabLegend({ labs, selected, onToggle }: Props) {
   const colorOf = useLabColor();
   return (
     <Group gap={6}>
-      {labs.map((lab) => (
+      {legendEntries(labs, colorOf, hasLabColor).map((entry) => (
         <Chip
-          key={lab}
+          key={entry.color}
           size="xs"
           variant="outline"
-          checked={selected.includes(lab)}
-          onChange={() => onToggle(lab)}
-          color={colorOf(lab)}
+          checked={entry.labs.every((lab) => selected.includes(lab))}
+          onChange={() => onToggle(entry.labs)}
+          color={entry.color}
+          title={entry.other ? entry.labs.join(", ") : undefined}
         >
-          <ColorSwatch component="span" color={colorOf(lab)} size={8} mr={6} withShadow={false} />
-          {lab}
+          <Group component="span" gap={6} wrap="nowrap">
+            <ColorSwatch component="span" color={entry.color} size={8} withShadow={false} />
+            {entry.other ? `${entry.label} (${entry.labs.length})` : entry.label}
+          </Group>
         </Chip>
       ))}
     </Group>

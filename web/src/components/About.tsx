@@ -108,8 +108,9 @@ export function About({ snapshot }: { snapshot: Snapshot }) {
             <Anchor href={LINKS.paper}>A Rosetta Stone for AI Benchmarks</Anchor> (Ho et al.). Logos
             from Lobe Icons. Built by Sakina.
           </Text>
-          <Text fw={600} className={classes.prose}>
-            This is an unofficial refit, not affiliated with or endorsed by Epoch AI.
+          <Text c="dimmed" className={classes.prose}>
+            ECI Live is an independent refit of Epoch AI's index and is not affiliated with Epoch
+            AI.
           </Text>
         </Stack>
       </SimpleGrid>
@@ -149,8 +150,9 @@ export function About({ snapshot }: { snapshot: Snapshot }) {
             )}
           </Fact>
           <Fact label="Bootstrap">
-            {fit.bootstrap_samples} refits, seed {fit.bootstrap_seed},{" "}
-            {Math.round(fit.ci_level * 100)}% intervals
+            {fit.bootstrap_samples} refits
+            {fit.bootstrap_chunks ? ` in ${fit.bootstrap_chunks} seeded chunks` : ""}, seed{" "}
+            {fit.bootstrap_seed}, {Math.round(fit.ci_level * 100)}% intervals
           </Fact>
           <Fact label="Agreement with Epoch">
             mean gap {drift.mean_abs.toFixed(2)}, max {drift.max_abs.toFixed(2)} over{" "}

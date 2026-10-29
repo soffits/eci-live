@@ -1,14 +1,33 @@
-import { Badge, Group, Tooltip } from "@mantine/core";
+import { Badge, CloseButton, Group, Tooltip } from "@mantine/core";
 import { NEW_WITHIN_DAYS } from "../config";
 import type { Row } from "../data";
 
 export function NewMark() {
   return (
     <Tooltip label={`Released in the ${NEW_WITHIN_DAYS} days before this snapshot`}>
-      <Badge size="xs" variant="outline" color="gray" tt="none">
+      <Badge size="sm" variant="default" tt="none">
         new
       </Badge>
     </Tooltip>
+  );
+}
+
+/** Marks a model the user added to the chart, with a button to take it off again. */
+export function AddedMark({ name, onRemove }: { name: string; onRemove: () => void }) {
+  return (
+    <Badge
+      size="sm"
+      variant="light"
+      color="blue"
+      c="var(--mantine-color-text)"
+      tt="none"
+      pr={2}
+      rightSection={
+        <CloseButton size="xs" onClick={onRemove} aria-label={`Remove ${name} from the chart`} />
+      }
+    >
+      added
+    </Badge>
   );
 }
 
@@ -21,15 +40,14 @@ export function PreviewMark({ row, compact = false }: { row: Row; compact?: bool
       w={260}
     >
       <Badge
-        size="xs"
+        size="sm"
         variant="light"
         color="violet"
+        c="var(--mantine-color-text)"
         tt="none"
         bd="1px dashed var(--mantine-color-violet-filled)"
       >
-        {compact
-          ? `Not on Epoch · ${row.benchmarks} bm`
-          : `Not on Epoch yet · ${row.benchmarks} benchmarks`}
+        {compact ? "Not on Epoch" : `Not on Epoch yet · ${row.benchmarks} benchmarks`}
       </Badge>
     </Tooltip>
   );

@@ -4,6 +4,7 @@ import "mantine-datatable/styles.layer.css";
 import "./global.css";
 
 import { Center, Loader, MantineProvider } from "@mantine/core";
+import { NuqsAdapter } from "nuqs/adapters/react";
 import { StrictMode, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
@@ -27,7 +28,9 @@ createRoot(root).render(
           </Center>
         }
       >
-        <App data={loadSiteData()} />
+        <NuqsAdapter>
+          <App data={loadSiteData()} />
+        </NuqsAdapter>
       </Suspense>
     </MantineProvider>
   </StrictMode>,

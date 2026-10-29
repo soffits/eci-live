@@ -46,6 +46,9 @@ export function ChartTooltip({
           {row.official_eci === null ? "not published yet" : row.official_eci.toFixed(1)}
         </Text>
         <ModelBadges row={row} />
+        <Text size="xs" c="dimmed" fs="italic">
+          Click for its detail page
+        </Text>
       </Stack>
     </Paper>
   );
