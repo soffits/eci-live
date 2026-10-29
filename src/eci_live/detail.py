@@ -1,9 +1,10 @@
-"""Per-model detail pages: every raw result in the zip, and how the fit used them.
+"""Per-variant detail pages: every raw result in the zip, and how the score used them.
 
-Which results entered the fit is read from `eci.prepare_benchmark_data` (the fit's own
-input), and the benchmark parameters from `eci.fit_eci_model`; nothing here re-derives
-the method. The central fit is deterministic, so it is re-run on the latest snapshot's
-input and checked against that snapshot's published scores.
+Which results entered a variant's score is read from `eci.prepare_benchmark_data` (the
+variants' own fit input, `variants.fit_input`), and the benchmark parameters from
+`eci.fit_eci_model`; nothing here re-derives the method. The central fits are
+deterministic, so they are re-run on the latest snapshot's input and checked against that
+snapshot's published scores, both the group-level fit and every variant.
 """
 
 import json
@@ -17,15 +18,9 @@ import pandas as pd
 from eci import download_benchmark_data, load_benchmark_metadata
 from eci.dataloader import BENCHMARK_METADATA_FILENAME, MODEL_METADATA_FILENAME
 
-from eci_live import refit
-from eci_live.schema import (
-    BenchmarkResult,
-    FitTerm,
-    HistoryPoint,
-    ModelDetail,
-    ModelVersion,
-    Snapshot,
-)
+from eci_live import domain, refit
+from eci_live.schema import BenchmarkResult, FitTerm, HistoryPoint, ModelDetail, Snapshot
+from eci_live.variants import Variants
 
 # Columns every benchmark file shares; they describe the model, not its score.
 DESCRIPTIVE = frozenset(
@@ -54,9 +49,10 @@ REPRODUCE_TOLERANCE = 0.05
 
 NOT_IN_INDEX = "This benchmark isn't part of the index."
 REPLACED = "Replaced in the fit by {new}, a newer version of this benchmark."
-BETTER_VERSION = "Another version of this model scored higher here; the fit keeps the best score."
-SAME_SCORE = "Another version of this model has the same score; it is counted once."
+BETTER_RESULT = "Another result of this variant scored higher here; the score keeps the best one."
+SAME_SCORE = "Another result of this variant has the same score; it is counted once."
 NOT_IN_FIT = "Not in the fit's input."
+NO_PARAMETERS = "No model the index fits has this benchmark, so it has no difficulty or slope yet."
 
 
 class ReproduceError(RuntimeError):
@@ -100,10 +96,10 @@ def _rows(frame: pd.DataFrame) -> list[Row]:
     return [{str(k): v for k, v in r.items()} for r in frame.to_dict("records")]
 
 
-def _newest(versions: pd.DataFrame, column: str) -> Any:
-    """The newest version's value of `column`, skipping versions without one."""
-    known = versions.dropna(subset=[column]).sort_values("date", ascending=False)
-    return known[column].iloc[0] if len(known) else None
+def _first(versions: pd.DataFrame, column: str) -> Any:
+    """The first version's value of `column`, skipping versions without one."""
+    known = versions[column].dropna() if column in versions else pd.Series()
+    return known.iloc[0] if len(known) else None
 
 
 def _source(row: Row) -> tuple[str | None, str | None]:
@@ -231,10 +227,11 @@ def raw_results(dfs: dict[str, pd.DataFrame], metadata: pd.DataFrame) -> pd.Data
 
 
 def _decide(
-    results: pd.DataFrame, fit_input: pd.DataFrame, supersede: dict[str, str]
+    results: pd.DataFrame, fit_input: pd.DataFrame, supersede: dict[str, str], fitted: set[str]
 ) -> list[tuple[bool, str | None]]:
-    """For one model's rows: which one the fit used per benchmark, and why the others
-    weren't. `fit_input` is this model's rows of `prepare_benchmark_data`."""
+    """For one variant's rows: which one its score used per benchmark, and why the others
+    weren't. `fit_input` is this variant's rows of its `prepare_benchmark_data`, `fitted` the
+    benchmarks the group-level fit has parameters for."""
     used_perf = {str(r["benchmark"]): float(r["performance"]) for r in _rows(fit_input)}
     claimed: set[str] = set()
     out: list[tuple[bool, str | None]] = []
@@ -245,8 +242,11 @@ def _decide(
         elif bench not in used_perf:
             new = supersede.get(bench)
             out.append((False, REPLACED.format(new=new) if new in used_perf else NOT_IN_FIT))
+        elif bench not in fitted:
+            claimed.add(bench)
+            out.append((False, NO_PARAMETERS))
         elif not math.isclose(float(row["normalized"]), used_perf[bench], abs_tol=1e-9):
-            out.append((False, BETTER_VERSION))
+            out.append((False, BETTER_RESULT))
         elif bench not in claimed:
             claimed.add(bench)
             out.append((True, None))
@@ -267,54 +267,56 @@ def predicted(eci: float, edi: float, slope: float) -> float:
     return _sigmoid(slope * (eci - edi))
 
 
+def _reproduce(latest: Snapshot, result: refit.Fit, found: Variants) -> pd.Series:
+    """The variants' central scores, after checking that this run's central fits give the
+    snapshot's published numbers (groups and variants)."""
+    groups = result.eci.set_index("Model")["eci"]
+    scores = domain.fixed_fit(result, found.best, None, seed=0, resamples=0).central
+    for label, central, published in (
+        ("group", groups, {g["name"]: g["eci"] for g in latest["groups"]}),
+        ("variant", scores, {m["version"]: m["eci"] for m in latest["models"]}),
+    ):
+        off = {
+            n: round(float(central[n]), 3)
+            for n in published
+            if n in central.index and abs(central[n] - published[n]) > REPRODUCE_TOLERANCE
+        }
+        if off or set(central.index) != set(published):
+            raise ReproduceError(
+                f"central {label} refit differs from snapshot {latest['id']}: {off}"
+            )
+    return scores
+
+
 def build(
-    zip_path: Path, snapshots: list[Snapshot], fitted: refit.Fit | None = None
+    zip_path: Path, snapshots: list[Snapshot], result: refit.Fit, found: Variants
 ) -> dict[str, ModelDetail]:
-    """Detail data for every model of the latest snapshot, keyed by model name. Reuses
-    `fitted` when this run already fit `zip_path`; otherwise runs the central fit."""
+    """Detail data for every variant of the latest snapshot, keyed by model version.
+    `result` and `found` are this run's central fit and variant input for `zip_path`."""
     latest = snapshots[-1]
     dfs = download_benchmark_data(zip_path)
     metadata = load_benchmark_metadata(dfs)
-    result = fitted or refit.fit(zip_path, bootstrap_samples=0)
-    fit_input, eci_df, edi_df = result.data, result.eci, result.edi
-
-    central = eci_df.set_index("Model")["eci"]
-    published = {m["name"]: m["eci"] for m in latest["models"]}
-    off = {
-        n: round(float(central[n]), 3)
-        for n in published
-        if abs(central[n] - published[n]) > REPRODUCE_TOLERANCE
-    }
-    if off or set(central.index) != set(published):
-        raise ReproduceError(f"central refit differs from snapshot {latest['id']}: {off}")
+    central = _reproduce(latest, result, found)
 
     params = {
         str(r["benchmark"]): (float(r["edi"]), float(r["discriminability_scaled"]))
-        for r in _rows(edi_df)
+        for r in _rows(result.edi)
     }
     supersede = {
         str(r["benchmark"]): str(r["superseded_by"])
         for r in _rows(metadata.dropna(subset=["superseded_by"]))
         if str(r["superseded_by"])
     }
-    versions = (
-        dfs[MODEL_METADATA_FILENAME]
-        .dropna(subset=["model_version", "model_group"])
-        .sort_values("model_version")
-    )
-    results = raw_results(dfs, metadata)
-    results = results.merge(
-        versions[["model_version", "model_group"]], left_on="version", right_on="model_version"
-    )
-    # Best score first, so the row the fit used is the first match in each benchmark.
-    results = results.sort_values(
+    table = found.table.dropna(subset=["model_group"])
+    # Best score first, so the row the score used is the first match in each benchmark.
+    results = raw_results(dfs, metadata).sort_values(
         ["benchmark", "normalized", "score"], ascending=[True, False, False]
     )
 
     history: dict[str, list[HistoryPoint]] = {}
     for snap in snapshots:
         for m in snap["models"]:
-            history.setdefault(m["name"], []).append(
+            history.setdefault(m["version"], []).append(
                 HistoryPoint(
                     snapshot=snap["id"],
                     fetched_at=snap["input"]["fetched_at"],
@@ -324,16 +326,23 @@ def build(
                 )
             )
 
+    by_version = found.table.set_index("model_version")
     details: dict[str, ModelDetail] = {}
-    for name in published:
-        own = fit_input[fit_input["Model"] == name]
-        rows = results[results["model_group"] == name]
-        decisions = _decide(rows, own, supersede)
-        mine = versions[versions["model_group"] == name]
-        eci = float(central[name])
+    for model in latest["models"]:
+        version = model["version"]
+        own = found.data[found.data["Model"] == version]
+        rows = results[results["version"] == version]
+        decisions = _decide(rows, own, supersede, set(params))
+        # Facts Epoch records on only some versions of a model come from the group.
+        mine = pd.concat(
+            [by_version.loc[[version]].reset_index(), table[table["model_group"] == model["group"]]]
+        )
+        eci = float(central[version])
         terms = []
         for r in _rows(own):
             bench = str(r["benchmark"])
+            if bench not in params:
+                continue
             edi, slope = params[bench]
             terms.append(
                 FitTerm(
@@ -344,27 +353,19 @@ def build(
                     predicted=round(predicted(eci, edi, slope), 4),
                 )
             )
-        details[name] = ModelDetail(
-            name=name,
+        details[version] = ModelDetail(
+            version=version,
+            name=model["name"],
             snapshot=latest["id"],
-            organization=_text(_newest(mine, "organization")),
-            country=_text(_newest(mine, "country")),
-            training_compute_flop=_float(_newest(mine, "training_compute_flop"), 0),
-            versions=[
-                ModelVersion(
-                    version=str(v["model_version"]),
-                    display_name=_text(v["display_name"]),
-                    release_date=_day(v["date"]),
-                )
-                for v in _rows(mine)
-            ],
-            history=history.get(name, []),
+            organization=_text(_first(mine, "organization")),
+            country=_text(_first(mine, "country")),
+            training_compute_flop=_float(_first(mine, "training_compute_flop"), 0),
+            history=history.get(version, []),
             fit=sorted(terms, key=lambda t: t["actual"] - t["predicted"], reverse=True),
             results=[
                 BenchmarkResult(
                     id=str(r["id"]),
                     benchmark=str(r["benchmark"]),
-                    version=str(r["version"]),
                     score=round(float(r["score"]), 4),
                     score_column=str(r["score_column"]),
                     stderr=_float(r["stderr"]),
@@ -383,7 +384,7 @@ def build(
 
 
 def write(details: dict[str, ModelDetail], slugs: dict[str, str], out_dir: Path) -> int:
-    """One JSON per model in `out_dir`, replacing any from an earlier run."""
+    """One JSON per variant in `out_dir`, replacing any from an earlier run."""
     out_dir.mkdir(parents=True, exist_ok=True)
     for old in out_dir.glob("*.json"):
         old.unlink()

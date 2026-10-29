@@ -1,13 +1,12 @@
-"""Domain ECIs: the solver, the presets from hub tags, Epoch's Cyber ECI and fit.json."""
+"""Domain ECIs: the solver, the presets from hub tags, and fit.json."""
 
 from pathlib import Path
 
 import numpy as np
-import pandas as pd
 import pytest
 from eci import download_benchmark_data, load_benchmark_metadata
 
-from eci_live import cyber, detail, domain, fitdata, hub, refit, settings, source
+from eci_live import detail, domain, fitdata, hub, refit, settings, source, variants
 from eci_live.schema import FitInfo, Snapshot
 
 # Rows of Epoch's own published fit (benchmark_data.zip, epoch_capabilities_index/, 2026-10-29):
@@ -71,32 +70,45 @@ def fit(synthetic_zip: Path) -> refit.Fit:
     return refit.fit(synthetic_zip, 20, workers=1)
 
 
-def test_every_benchmark_reproduces_the_general_point_estimates(fit: refit.Fit) -> None:
+@pytest.fixture(scope="module")
+def found(synthetic_zip: Path) -> variants.Variants:
+    return variants.load(synthetic_zip)
+
+
+def test_every_benchmark_reproduces_the_group_point_estimates(fit: refit.Fit) -> None:
     every = list(fit.edi["benchmark"])
     central = refit.Fit(fit.data, fit.eci, fit.edi, None, [])
     general = fit.eci.set_index("Model")["eci"]
-    for score in domain.scores(central, every, seed=0, resamples=1):
-        assert score["eci"] == pytest.approx(general[score["name"]], abs=0.5)
+    best = domain.best_scores(fit.data)
+    for score in domain.scores(central, best, every, seed=0, resamples=1):
+        assert score["eci"] == pytest.approx(general[score["version"]], abs=0.5)
         assert score["ci_low"] is None
 
 
-def test_domain_scores_have_intervals_and_counts(fit: refit.Fit) -> None:
+def test_domain_scores_are_per_variant_with_intervals_and_counts(
+    fit: refit.Fit, found: variants.Variants
+) -> None:
     chosen = ["Alpha", "Gamma", "Delta"]
-    seed = domain.domain_seed(0)
-    scores = domain.scores(fit, chosen, seed, resamples=3)
-    assert scores == domain.scores(fit, chosen, seed, resamples=3)
+    seed = domain.seed_for(1)
+    scores = domain.scores(fit, found.best, chosen, seed, resamples=3)
+    assert scores == domain.scores(fit, found.best, chosen, seed, resamples=3)
     assert [s["eci"] for s in scores] == sorted((s["eci"] for s in scores), reverse=True)
     for s in scores:
         assert s["ci_low"] is not None and s["ci_high"] is not None
         assert s["ci_low"] <= s["eci"] + 1e-6 and s["eci"] <= s["ci_high"] + 1e-6
         assert 1 <= s["benchmarks"] <= 3
-    assert {s["name"]: s["benchmarks"] for s in scores}["Thin"] == 2
+    counts = {s["version"]: s["benchmarks"] for s in scores}
+    assert counts["thin"] == 2 and counts["twin-mini"] == 1
 
 
-def test_domain_seeds_follow_the_chunk_seeds() -> None:
+def test_no_benchmarks_means_no_domain_scores(fit: refit.Fit, found: variants.Variants) -> None:
+    assert domain.scores(fit, found.best, [], seed=0, resamples=1) == []
+
+
+def test_seeds_follow_the_chunk_seeds() -> None:
     chunks = refit.chunk_seeds(settings.BOOTSTRAP_SEED, settings.BOOTSTRAP_CHUNKS)
-    seeds = [domain.domain_seed(i) for i in range(2)]
-    assert len(set(seeds)) == 2 and not set(seeds) & set(chunks)
+    seeds = [domain.seed_for(i) for i in range(3)]
+    assert len(set(seeds)) == 3 and not set(seeds) & set(chunks)
 
 
 REGISTRY = b"""
@@ -132,48 +144,33 @@ def test_presets_follow_epochs_rule(synthetic_zip: Path) -> None:
     assert hub.in_domain(tagged, "Mathematics") == ["Gamma"]  # Delta is hidden on the hub
 
 
-def test_cyber_is_epochs_table_with_benchmark_counts() -> None:
-    scores = pd.DataFrame(
-        [
-            ["Mythos", "Mythos", 170.0, 165.0, 175.0, None, "2026-09-01",
-             "Anthropic", "USA", "Limited access"],
-            ["GPT-X", "GPT-X", 171.0, 166.0, 177.0, "GPT-X", "2026-09-03",
-             "OpenAI", "USA", "API access"],
-        ],
-        columns=[
-            "Model", "Display name", "eci", "eci_ci_low", "eci_ci_high", "general_model_name",
-            "date", "Organization", "Country (of organization)", "Model accessibility",
-        ],
-    )  # fmt: skip
-    results = pd.DataFrame(
-        {"Model": ["Mythos", "Mythos", "GPT-X"], "benchmark": ["CTF", "Range", "CTF"]}
-    )
-    benchmarks, models = cyber.parse(scores, results)
-    assert benchmarks == ["CTF", "Range"]
-    assert [m["name"] for m in models] == ["GPT-X", "Mythos"]
-    assert models[1]["general_name"] is None and models[1]["benchmarks"] == 2
-    assert models[0]["weights"] == "closed" and models[0]["lab"] == "OpenAI"
-
-
-def test_fit_json_has_the_fit_input_and_model_facts(synthetic_zip: Path, fit: refit.Fit) -> None:
-    models = refit.model_scores(
-        refit.fit_scores(fit), pd.DataFrame(), refit.version_metadata(synthetic_zip)
-    )
+def test_fit_json_has_the_variant_input_and_model_facts(
+    synthetic_zip: Path, fit: refit.Fit, found: variants.Variants
+) -> None:
+    models = variants.scores(fit, found)
     snap = Snapshot(
-        schema=1,
+        schema=settings.SCHEMA_VERSION,
         id="s",
         input=source.local(synthetic_zip),
-        fit=FitInfo(eci_public_commit="x", bootstrap_samples=0, bootstrap_seed=0, ci_level=0.9),
+        fit=FitInfo(
+            eci_public_commit="x",
+            bootstrap_samples=0,
+            bootstrap_seed=0,
+            bootstrap_chunks=0,
+            ci_level=0.9,
+            resamples_per_draw=1,
+            rank_min_benchmarks=4,
+        ),
         build={"commit": None, "run_url": None},
-        drift={"shared_models": 0, "max_abs": 0, "mean_abs": 0, "tolerance": 1},
         models=models,
+        groups=refit.group_scores(fit),
     )
-    details = detail.build(synthetic_zip, [snap], fit)
-    data = fitdata.build(fit, snap, details)
-    names = [m["name"] for m in data["models"]]
-    assert names == [m["name"] for m in models]
-    assert len(data["results"]) == len(domain.best_scores(fit.data))
-    model_a = data["models"][names.index("Model A")]
+    details = detail.build(synthetic_zip, [snap], fit, found)
+    data = fitdata.build(fit, found, snap, details)
+    names = [m["version"] for m in data["models"]]
+    assert names == [m["version"] for m in models]
+    assert len(data["results"]) == len(found.best)
+    model_a = data["models"][names.index("model-a")]
     assert model_a["training_compute_flop"] == 1e25 and model_a["country"] == "Nowhere"
     bench = [b["name"] for b in data["benchmarks"]]
     m, b, v = data["results"][0]

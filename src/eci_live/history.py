@@ -17,7 +17,7 @@ def snapshot_id(fetched_at: str, sha256: str) -> str:
 
 
 def slugs(names: list[str]) -> dict[str, str]:
-    """URL- and file-safe ids for model names, unique in the given order."""
+    """URL- and file-safe ids for model versions, unique in the given order."""
     taken: set[str] = set()
     out: dict[str, str] = {}
     for name in names:
@@ -51,24 +51,36 @@ def dump(data: Snapshot | SiteData) -> str:
     return json.dumps(data, indent=1, ensure_ascii=False, allow_nan=False) + "\n"
 
 
+def current(snapshots: list[Snapshot]) -> list[Snapshot]:
+    """Snapshots of the current schema. Older ones scored model groups rather than variants,
+    so their scores don't continue a variant's history."""
+    return [s for s in snapshots if s["schema"] == settings.SCHEMA_VERSION]
+
+
+def has_input(snapshots: list[Snapshot], sha256: str) -> bool:
+    """Whether this input already has a snapshot of the current schema."""
+    return any(s["input"]["sha256"] == sha256 for s in current(snapshots))
+
+
 def site_data(snapshots: list[Snapshot]) -> SiteData:
     """The single JSON the web page reads: latest snapshot plus history context."""
-    if not snapshots:
-        raise ValueError("no snapshots to publish")
+    scored = current(snapshots)
+    if not scored:
+        raise ValueError("no snapshots of the current schema to publish")
     first_seen: dict[str, str] = {}
-    for snap in snapshots:
+    for snap in scored:
         for model in snap["models"]:
-            first_seen.setdefault(model["name"], snap["input"]["fetched_at"])
-    previous = snapshots[-2]["models"] if len(snapshots) > 1 else []
+            first_seen.setdefault(model["version"], snap["input"]["fetched_at"])
+    previous = scored[-2]["models"] if len(scored) > 1 else []
     return SiteData(
-        latest=snapshots[-1],
+        latest=scored[-1],
         snapshots=[
             SnapshotRef(
                 id=s["id"], fetched_at=s["input"]["fetched_at"], sha256=s["input"]["sha256"]
             )
             for s in snapshots
         ],
-        previous_eci={m["name"]: m["eci"] for m in previous},
+        previous_eci={m["version"]: m["eci"] for m in previous},
         first_seen=first_seen,
-        slugs=slugs([m["name"] for m in snapshots[-1]["models"]]),
+        slugs=slugs([m["version"] for m in scored[-1]["models"]]),
     )

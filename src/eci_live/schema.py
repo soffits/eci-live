@@ -17,10 +17,14 @@ class FitInfo(TypedDict):
     eci_public_commit: str
     bootstrap_samples: int
     bootstrap_seed: int
-    # Seeded chunks the bootstrap ran in (seeds derived from bootstrap_seed). Snapshots
-    # from before chunking ran it as one serial chain and have no such field.
-    bootstrap_chunks: NotRequired[int]
+    # Seeded chunks the bootstrap ran in (seeds derived from bootstrap_seed).
+    bootstrap_chunks: int
     ci_level: float
+    # Variant intervals: this many resamples of a variant's own results per bootstrap draw.
+    resamples_per_draw: int
+    # Rank intervals and the chance of #1 are over variants with at least this many
+    # benchmarks (eci-public's own minimum for a model to enter the fit).
+    rank_min_benchmarks: int
 
 
 class BuildInfo(TypedDict):
@@ -28,15 +32,22 @@ class BuildInfo(TypedDict):
     run_url: str | None
 
 
-class DriftInfo(TypedDict):
-    shared_models: int
-    max_abs: float
-    mean_abs: float
-    tolerance: float
-
-
 class ModelScore(TypedDict):
+    """One model variant: an Epoch `model_version` (a reasoning setting, provider or mode of
+    a model), scored on its own results with the group-level fit's benchmark parameters."""
+
+    version: str
     name: str
+    # Epoch's model group, the entry eci-public fits; its variants are siblings.
+    group: str
+    # The reasoning setting as written in the version id ("max", "16k thinking", "pro, max"),
+    # or None where the id doesn't say.
+    effort: str | None
+    # Higher is more reasoning effort: none 0, unknown 1, minimal 2, low 3, a thinking
+    # budget 10 + thousands of tokens, medium 1000, high 1001, xhigh 1002, max 1003.
+    effort_rank: int
+    # Pro mode (parallel sampling) of the model, rather than a reasoning-effort level.
+    pro: bool
     lab: str
     release_date: str | None
     eci: float
@@ -48,7 +59,16 @@ class ModelScore(TypedDict):
     p_first: float | None
     weights: Weights
     accessibility: str | None
-    official_eci: float | None
+
+
+class GroupScore(TypedDict):
+    """A model group in the group-level fit, which sets the scale and benchmark parameters."""
+
+    name: str
+    eci: float
+    ci_low: float | None
+    ci_high: float | None
+    benchmarks: int
 
 
 class DomainBenchmark(TypedDict):
@@ -66,7 +86,7 @@ class DomainBenchmark(TypedDict):
 
 
 class DomainScore(TypedDict):
-    name: str
+    version: str
     eci: float
     ci_low: float | None
     ci_high: float | None
@@ -78,7 +98,7 @@ class Preset(TypedDict):
     label: str
     domain: str
     benchmarks: list[str]
-    # Every model with at least one of the benchmarks; the page applies "min. benchmarks".
+    # Every variant with at least one of the benchmarks; the page applies "min. benchmarks".
     scores: list[DomainScore]
 
 
@@ -91,41 +111,17 @@ class Domains(TypedDict):
     presets: list[Preset]
 
 
-class CyberModel(TypedDict):
-    name: str
-    # The model's name in the general ECI, or None if Epoch scores it for cyber only.
-    general_name: str | None
-    lab: str
-    release_date: str | None
-    accessibility: str | None
-    weights: Weights
-    country: str | None
-    eci: float
-    ci_low: float | None
-    ci_high: float | None
-    benchmarks: int
-
-
-class Cyber(TypedDict):
-    """Epoch's own published Cyber ECI, shown as Epoch's numbers (not refit here)."""
-
-    scores: InputInfo
-    results: InputInfo
-    benchmarks: list[str]
-    models: list[CyberModel]
-
-
 class Snapshot(TypedDict):
     schema: int
     id: str
     input: InputInfo
     fit: FitInfo
     build: BuildInfo
-    drift: DriftInfo
+    # Variants, best first.
     models: list[ModelScore]
-    # Absent on snapshots from before domain ECIs, or when the hub couldn't be read.
+    groups: list[GroupScore]
+    # Absent when the hub couldn't be read.
     domains: NotRequired[Domains]
-    cyber: NotRequired[Cyber]
 
 
 class SnapshotRef(TypedDict):
@@ -137,19 +133,15 @@ class SnapshotRef(TypedDict):
 class SiteData(TypedDict):
     latest: Snapshot
     snapshots: list[SnapshotRef]
+    # Keyed by model version, over snapshots of the current schema only (older ones scored
+    # model groups, not variants).
     previous_eci: dict[str, float]
     first_seen: dict[str, str]
-    # Model name -> file name stem of its detail page data (`models/<slug>.json`).
+    # Model version -> file name stem of its detail page data (`models/<slug>.json`).
     slugs: dict[str, str]
 
 
-# Detail pages: one file per model, rewritten from the latest snapshot on every run.
-
-
-class ModelVersion(TypedDict):
-    version: str
-    display_name: str | None
-    release_date: str | None
+# Detail pages: one file per variant, rewritten from the latest snapshot on every run.
 
 
 class BenchmarkResult(TypedDict):
@@ -158,7 +150,6 @@ class BenchmarkResult(TypedDict):
     # Epoch's record id, or `<file>#<row>` for files without one.
     id: str
     benchmark: str
-    version: str
     score: float
     score_column: str
     stderr: float | None
@@ -192,12 +183,12 @@ class HistoryPoint(TypedDict):
 
 
 class ModelDetail(TypedDict):
+    version: str
     name: str
     snapshot: str
     organization: str | None
     country: str | None
     training_compute_flop: float | None
-    versions: list[ModelVersion]
     history: list[HistoryPoint]
     fit: list[FitTerm]
     results: list[BenchmarkResult]
@@ -215,7 +206,7 @@ class FitBenchmark(TypedDict):
 
 
 class FitModel(TypedDict):
-    name: str
+    version: str
     country: str | None
     training_compute_flop: float | None
 
@@ -224,5 +215,5 @@ class FitData(TypedDict):
     snapshot: str
     benchmarks: list[FitBenchmark]
     models: list[FitModel]
-    # The fit's input: [model index, benchmark index, 0-1 score], best result per pair.
+    # Each variant's input: [model index, benchmark index, 0-1 score], best result per pair.
     results: list[tuple[int, int, float]]

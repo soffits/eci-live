@@ -1,17 +1,20 @@
 from pathlib import Path
 
 import numpy as np
-import pandas as pd
 import pytest
 
-from eci_live import history, refit
-from eci_live.drift import DriftError, check_drift
+from eci_live import history, refit, settings
 from eci_live.schema import ModelScore, Snapshot
 
 
-def model(name: str, eci: float, official: float | None = None) -> ModelScore:
+def model(version: str, eci: float) -> ModelScore:
     return ModelScore(
-        name=name,
+        version=version,
+        name=version.upper(),
+        group="G",
+        effort=None,
+        effort_rank=1,
+        pro=False,
         lab="Lab",
         release_date="2026-01-01",
         eci=eci,
@@ -23,13 +26,14 @@ def model(name: str, eci: float, official: float | None = None) -> ModelScore:
         p_first=None,
         weights="closed",
         accessibility="API access",
-        official_eci=official,
     )
 
 
-def snapshot(fetched_at: str, sha: str, models: list[ModelScore]) -> Snapshot:
+def snapshot(
+    fetched_at: str, sha: str, models: list[ModelScore], schema: int = settings.SCHEMA_VERSION
+) -> Snapshot:
     return Snapshot(
-        schema=1,
+        schema=schema,
         id=history.snapshot_id(fetched_at, sha),
         input={
             "url": "u",
@@ -42,31 +46,15 @@ def snapshot(fetched_at: str, sha: str, models: list[ModelScore]) -> Snapshot:
             "eci_public_commit": "c",
             "bootstrap_samples": 0,
             "bootstrap_seed": 0,
+            "bootstrap_chunks": 0,
             "ci_level": 0.9,
+            "resamples_per_draw": 1,
+            "rank_min_benchmarks": 4,
         },
         build={"commit": None, "run_url": None},
-        drift={"shared_models": 0, "max_abs": 0, "mean_abs": 0, "tolerance": 1},
         models=models,
+        groups=[],
     )
-
-
-def test_drift_within_tolerance_reports_stats() -> None:
-    info = check_drift(
-        [model("a", 150.0, 150.4), model("b", 140.0, 139.8), model("new", 160.0)],
-        {"a", "b"},
-        tolerance=1.0,
-    )
-    assert info == {"shared_models": 2, "max_abs": 0.4, "mean_abs": 0.3, "tolerance": 1.0}
-
-
-def test_drift_beyond_tolerance_fails() -> None:
-    with pytest.raises(DriftError, match=r"b \(3\.00\)"):
-        check_drift([model("a", 150.0, 150.0), model("b", 143.0, 140.0)], {"a", "b"}, 1.0)
-
-
-def test_drift_fails_when_published_model_disappears() -> None:
-    with pytest.raises(DriftError, match="missing from refit"):
-        check_drift([model("a", 150.0, 150.0)], {"a", "gone"}, 1.0)
 
 
 @pytest.mark.parametrize(
@@ -88,49 +76,6 @@ def test_lab_is_first_listed_organization() -> None:
     assert refit.lab_of(None) == "Unknown"
 
 
-def test_model_scores_prefer_published_metadata_and_flag_unpublished() -> None:
-    fit = pd.DataFrame(
-        {
-            "eci": [150.0, 155.0],
-            "eci_ci_low": [148.0, None],
-            "eci_ci_high": [152.0, None],
-            "benchmarks": [6, 4],
-            "date": pd.to_datetime(["2026-01-02", "2026-10-20"]),
-        },
-        index=pd.Index(["Known", "Fresh"], name="Model"),
-    )
-    official = pd.DataFrame(
-        {
-            "eci": [150.3],
-            "date": ["2026-01-01"],
-            "Organization": ["OpenAI"],
-            "Model accessibility": ["API access"],
-        },
-        index=pd.Index(["Known"], name="Model"),
-    )
-    versions = pd.DataFrame(
-        {
-            "organization": ["DeepSeek,Peking University"],
-            "accessibility": ["Open weights (unrestricted)"],
-        },
-        index=pd.Index(["Fresh"], name="model_group"),
-    )
-    fresh, known = refit.model_scores(fit, official, versions)
-    assert (fresh["name"], fresh["lab"], fresh["weights"], fresh["official_eci"]) == (
-        "Fresh",
-        "DeepSeek",
-        "open",
-        None,
-    )
-    assert fresh["release_date"] == "2026-10-20"
-    assert fresh["ci_low"] is None
-    assert (known["lab"], known["release_date"], known["official_eci"]) == (
-        "OpenAI",
-        "2026-01-01",
-        150.3,
-    )
-
-
 def test_rank_stats_give_rank_intervals_and_chance_of_first() -> None:
     draws = np.array([[3.0, 2.0, 1.0], [2.0, 3.0, 1.0], [3.0, 2.0, 1.0], [3.0, 1.0, 2.0]])
     stats = refit.rank_stats(draws, ["a", "b", "c"])
@@ -147,8 +92,8 @@ def test_snapshot_id_is_sortable_and_tag_safe() -> None:
 
 
 def test_history_round_trip_and_site_data(tmp_path: Path) -> None:
-    old = snapshot("2026-10-28T05:00:00Z", "aaaa0000", [model("a", 150.0)])
-    new = snapshot("2026-10-29T05:00:00Z", "bbbb0000", [model("a", 151.0), model("b", 160.0)])
+    old = snapshot("2026-10-28T05:00:00Z", "aaaa0000", [model("a_max", 150.0)])
+    new = snapshot("2026-10-29T05:00:00Z", "bbbb0000", [model("a_max", 151.0), model("b/c", 160.0)])
     for snap in (new, old):
         history.save(tmp_path, snap)
     loaded = history.load(tmp_path)
@@ -156,5 +101,20 @@ def test_history_round_trip_and_site_data(tmp_path: Path) -> None:
 
     site = history.site_data(loaded)
     assert site["latest"]["id"] == new["id"]
-    assert site["previous_eci"] == {"a": 150.0}
-    assert site["first_seen"] == {"a": "2026-10-28T05:00:00Z", "b": "2026-10-29T05:00:00Z"}
+    assert site["previous_eci"] == {"a_max": 150.0}
+    assert site["first_seen"] == {"a_max": "2026-10-28T05:00:00Z", "b/c": "2026-10-29T05:00:00Z"}
+    assert site["slugs"] == {"a_max": "a-max", "b/c": "b-c"}
+
+
+def test_snapshots_of_an_older_schema_are_not_variant_history() -> None:
+    groups = snapshot("2026-10-28T05:00:00Z", "aaaa0000", [model("A", 150.0)], schema=1)
+    new = snapshot("2026-10-28T06:00:00Z", "aaaa0000", [model("a_max", 151.0)])
+    # The same input as a group-level snapshot still needs a variant snapshot.
+    assert not history.has_input([groups], "aaaa0000")
+    assert history.has_input([groups, new], "aaaa0000")
+    site = history.site_data([groups, new])
+    assert site["latest"]["id"] == new["id"]
+    assert site["previous_eci"] == {} and list(site["first_seen"]) == ["a_max"]
+    assert len(site["snapshots"]) == 2
+    with pytest.raises(ValueError, match="current schema"):
+        history.site_data([groups])

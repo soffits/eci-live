@@ -65,8 +65,11 @@ def synthetic_zip(tmp_path_factory: pytest.TempPathFactory) -> Path:
                     "Log viewer": "https://logs/x",
                 }
             )
-    # Twin has a second version that does worse on Alpha: the fit keeps the best.
+    # Twin has a second version (its own variant) that does worse on Alpha: the group fit
+    # keeps the best.
     rows["Alpha"].append({"Model version": "twin-mini", "Alpha": 0.05, "stderr": 0.02})
+    # A repeated, lower run of the same version: its score keeps the best result.
+    rows["Beta"].append({"Model version": "model-a", "Beta": 0.26, "stderr": 0.02})
     metadata = pd.DataFrame(
         [
             {

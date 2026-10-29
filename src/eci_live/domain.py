@@ -1,11 +1,14 @@
-"""Domain ECIs, by Epoch's domain-specific method.
+"""Capability with fixed benchmark parameters: the variant scores and the domain ECIs.
 
 eci-public has no function for this step, so it is written here, following Epoch's method
-page and the solver its ECI page runs: benchmark difficulty and slope are fixed at the
-general fit's (already on the ECI scale) and each model's capability alone is refit, by
-least squares, on its results in the chosen benchmarks. `web/src/refit.ts` is the same
-solver for custom selections in the browser.
+page for domain ECIs and the solver its ECI page runs: benchmark difficulty and slope are
+fixed at the general (group-level) fit's, already on the ECI scale, and each model's
+capability alone is refit, by least squares, on its own results. The general index scores
+every model variant this way on all benchmarks; a domain ECI on the domain's benchmarks.
+`web/src/refit.ts` is the same solver for custom selections in the browser.
 """
+
+from dataclasses import dataclass
 
 import numpy as np
 import pandas as pd
@@ -99,9 +102,10 @@ def capability(
     return out
 
 
-def domain_seed(index: int) -> int:
-    """Seed of the index-th preset's resampling, derived from BOOTSTRAP_SEED after the
-    general bootstrap's chunk seeds (SeedSequence children don't depend on how many)."""
+def seed_for(index: int) -> int:
+    """Seed of the index-th fixed-parameter scoring (0: the general variant scores, then one
+    per domain preset), derived from BOOTSTRAP_SEED after the general bootstrap's chunk seeds
+    (SeedSequence children don't depend on how many are spawned)."""
     child = np.random.SeedSequence(settings.BOOTSTRAP_SEED).spawn(
         settings.BOOTSTRAP_CHUNKS + index + 1
     )[-1]
@@ -109,21 +113,47 @@ def domain_seed(index: int) -> int:
 
 
 def best_scores(data: pd.DataFrame) -> pd.Series:
-    """The fit's input as one 0-1 score per (model, benchmark)."""
+    """A fit input as one 0-1 score per (model, benchmark)."""
     scores: pd.Series = data.groupby(["Model", "benchmark"])["performance"].max()
     return scores
 
 
-def scores(fit: Fit, benchmarks: list[str], seed: int, resamples: int) -> list[DomainScore]:
-    """Domain ECI of every model with at least one of `benchmarks`, with the 5,000-sample
-    interval when the fit has bootstrap draws (CI_LEVEL quantiles)."""
+@dataclass(frozen=True)
+class Scored:
+    """Capabilities refit with the general fit's benchmark parameters held fixed."""
+
+    central: pd.Series  # model -> ECI
+    benchmarks: pd.Series  # model -> how many benchmarks its score rests on
+    # (draws x resamples, models), columns in `central` order. Row d * resamples + r uses
+    # bootstrap draw d for every model, so a row is one joint draw (for rank intervals).
+    samples: np.ndarray | None
+
+    def interval(self) -> tuple[np.ndarray, np.ndarray] | None:
+        if self.samples is None:
+            return None
+        tail = (1 - settings.CI_LEVEL) / 2
+        low, high = np.quantile(self.samples, [tail, 1 - tail], axis=0)
+        return low, high
+
+
+def fixed_fit(
+    fit: Fit, scores: pd.Series, benchmarks: list[str] | None, seed: int, resamples: int
+) -> Scored:
+    """Refit each model's capability alone on its `scores` (best per model and benchmark),
+    using only `benchmarks` (all fitted ones if None). Intervals, when the fit has bootstrap
+    draws: for each draw's difficulty and slope, `resamples` resamples of the model's own
+    results (draws x resamples samples, as Epoch does for its domain ECIs); none if
+    `resamples` is 0."""
     params = fit.edi.set_index("benchmark")
-    table = best_scores(fit.data).unstack()
-    chosen = [b for b in benchmarks if b in table.columns]
+    table = scores.unstack()
+    wanted = list(params.index) if benchmarks is None else benchmarks
+    chosen = [b for b in wanted if b in table.columns and b in params.index]
     rng = np.random.default_rng(seed)
     col = {b: i for i, b in enumerate(fit.benchmarks)}
-    tail = (1 - settings.CI_LEVEL) / 2
-    out: list[DomainScore] = []
+    with_draws = fit.edi_draws is not None and fit.slope_draws is not None and resamples > 0
+    central: dict[str, float] = {}
+    counts: dict[str, int] = {}
+    samples: list[np.ndarray] = []
     for name, row in table[chosen].iterrows():
         have = row.dropna()
         if have.empty:
@@ -132,25 +162,39 @@ def scores(fit: Fit, benchmarks: list[str], seed: int, resamples: int) -> list[D
         perf = have.to_numpy(float)
         edi = params.loc[names, "edi"].to_numpy(float)
         slope = params.loc[names, "discriminability_scaled"].to_numpy(float)
-        central = float(capability(perf[None], edi[None], slope[None])[0])
-        low = high = None
-        if fit.edi_draws is not None and fit.slope_draws is not None:
-            draws = len(fit.edi_draws)
-            k = len(names)
+        point = float(capability(perf[None], edi[None], slope[None])[0])
+        central[str(name)], counts[str(name)] = point, len(names)
+        if with_draws:
+            assert fit.edi_draws is not None and fit.slope_draws is not None
+            draws, k = len(fit.edi_draws), len(names)
             cols = np.array([col[b] for b in names])
             pick = rng.integers(0, k, size=(draws, resamples, k))
             rows = np.arange(draws)[:, None, None]
             e = fit.edi_draws[rows, cols[pick]].reshape(-1, k)
             s = fit.slope_draws[rows, cols[pick]].reshape(-1, k)
-            samples = capability(perf[pick].reshape(-1, k), e, s, start=central)
-            low, high = (round(float(v), 2) for v in np.quantile(samples, [tail, 1 - tail]))
-        out.append(
-            DomainScore(
-                name=str(name),
-                eci=round(central, 2),
-                ci_low=low,
-                ci_high=high,
-                benchmarks=len(names),
-            )
+            samples.append(capability(perf[pick].reshape(-1, k), e, s, start=point))
+    return Scored(
+        central=pd.Series(central, dtype=float),
+        benchmarks=pd.Series(counts, dtype=int),
+        samples=np.column_stack(samples) if samples else None,
+    )
+
+
+def scores(
+    fit: Fit, best: pd.Series, benchmarks: list[str], seed: int, resamples: int
+) -> list[DomainScore]:
+    """Domain ECI of every model (variant) in `best` with at least one of `benchmarks`, with
+    the CI_LEVEL interval when the fit has bootstrap draws."""
+    scored = fixed_fit(fit, best, benchmarks, seed, resamples)
+    interval = scored.interval()
+    out = [
+        DomainScore(
+            version=str(name),
+            eci=round(float(eci), 2),
+            ci_low=None if interval is None else round(float(interval[0][i]), 2),
+            ci_high=None if interval is None else round(float(interval[1][i]), 2),
+            benchmarks=int(scored.benchmarks.iloc[i]),
         )
+        for i, (name, eci) in enumerate(scored.central.items())
+    ]
     return sorted(out, key=lambda m: -m["eci"])
