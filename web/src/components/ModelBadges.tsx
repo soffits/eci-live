@@ -1,6 +1,7 @@
 import { Badge, CloseButton, Group, Menu, Text, Tooltip } from "@mantine/core";
 import { NEW_WITHIN_DAYS } from "../config";
 import type { Row } from "../data";
+import { provisionalReason } from "../eligibility";
 import classes from "./ModelBadges.module.css";
 
 export function NewMark() {
@@ -48,12 +49,12 @@ export function FallbackMark({ skipped, min }: { skipped: Row[]; min: number }) 
   );
 }
 
-/** Marks a variant with fewer benchmarks than the minimum: listed, but not ranked. */
-export function ThinMark({ row, min }: { row: Row; min: number }) {
+/** Marks a variant drawn although it misses the board's requirement (eligibility.ts). */
+export function ProvisionalMark({ row }: { row: Row }) {
   return (
-    <Tooltip label={`Fewer than ${min} benchmarks: listed, but not ranked`}>
-      <Badge size="sm" color="gray" variant="outline" flex="none">
-        {row.benchmarks} bm
+    <Tooltip label={provisionalReason(row)} multiline w={280}>
+      <Badge size="sm" color="gray" variant="outline" bd="1px dashed" flex="none">
+        provisional
       </Badge>
     </Tooltip>
   );

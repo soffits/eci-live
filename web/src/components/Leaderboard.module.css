@@ -105,3 +105,15 @@
   color: var(--eci-tie-text);
   background: var(--eci-tie-band);
 }
+
+.keyRough {
+  fill: none;
+  stroke: var(--mantine-color-dimmed);
+  stroke-dasharray: 4 3;
+}
+
+.keyHollow {
+  fill: var(--mantine-color-body);
+  stroke: var(--mantine-color-text);
+  stroke-width: 2;
+}

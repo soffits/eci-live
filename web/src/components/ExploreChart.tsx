@@ -13,6 +13,7 @@ import {
   ZAxis,
 } from "recharts";
 import type { Row } from "../data";
+import { isProvisional } from "../eligibility";
 import { niceTicks } from "../scale";
 import { ChartTooltip } from "./ChartTooltip";
 import { useModelNav } from "./ModelLink";
@@ -168,7 +169,8 @@ export function ExploreChart({
   const yMin = yTicks[0] ?? floor;
   const inRange = all.filter((p) => p.y >= yMin);
   const offScale = all.length - inRange.length;
-  const records = view === "domain" ? [] : frontier(inRange);
+  // Provisional variants (picked although they miss the board's requirement) never set a record.
+  const records = view === "domain" ? [] : frontier(inRange.filter((p) => !isProvisional(p.row)));
   const recordNames = new Set(records.map((p) => p.name));
   const dots = frontierOnly ? [] : inRange.filter((p) => !recordNames.has(p.name));
   const axis = xAxisOf(view, inRange, narrow);
@@ -298,9 +300,10 @@ export function ExploreChart({
               <Cell
                 key={p.name}
                 fill={colorOf(p.row)}
-                fillOpacity={0.82}
-                stroke="var(--eci-surface)"
-                strokeWidth={1}
+                {...(isProvisional(p.row)
+                  ? { fillOpacity: 0.12, stroke: colorOf(p.row), strokeDasharray: "2 2" }
+                  : { fillOpacity: 0.82, stroke: "var(--eci-surface)" })}
+                strokeWidth={isProvisional(p.row) ? 1.5 : 1}
               />
             ))}
             {view === "domain" && <LabelList dataKey="name" content={renderLabel} />}

@@ -104,7 +104,9 @@ function Headline({ row, site }: { row: Row; site: SiteData }) {
         sub={
           ranked
             ? `90% rank interval ${formatRange(row.rank_low ?? 0, row.rank_high ?? 0)}`
-            : "not ranked"
+            : row.rank === null
+              ? "provisional, not ranked"
+              : "no rank interval"
         }
       />
       <Stat
@@ -726,6 +728,13 @@ function Body({
   const benchmarks = detail.fit.length;
   return (
     <Stack gap="lg">
+      {row.missing_areas && row.missing_areas.length > 0 && (
+        <Alert color="gray" variant="light" radius="lg" title="Incomplete coverage">
+          No {row.missing_areas.join(", ").toLowerCase()} benchmark behind this score, so it isn't
+          ranked on the General (all-round) index. It still counts in a domain where it has enough
+          of that domain's benchmarks.
+        </Alert>
+      )}
       {isThin(benchmarks) && (
         <Alert color="yellow" variant="light" radius="lg" title="Thin evidence">
           This score rests on only {benchmarks} benchmark{benchmarks === 1 ? "" : "s"}

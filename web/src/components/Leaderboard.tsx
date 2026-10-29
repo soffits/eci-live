@@ -1,6 +1,7 @@
 import { useElementSize } from "@mantine/hooks";
 import { Bar, BarChart, CartesianGrid, ReferenceArea, Tooltip, XAxis, YAxis } from "recharts";
 import type { Row } from "../data";
+import { isProvisional } from "../eligibility";
 import { niceTicks } from "../scale";
 import { ChartTooltip } from "./ChartTooltip";
 import { LabLogo, useLabColor } from "./LabLogo";
@@ -11,6 +12,7 @@ import {
   MarkDots,
   MarkDotsKey,
   NewMark,
+  ProvisionalMark,
   VariantsMenu,
 } from "./ModelBadges";
 import { ModelLink, useModelNav } from "./ModelLink";
@@ -66,7 +68,7 @@ function labelWidthFor(
         r.name.length * NAME_PX +
         (r.isNew ? BADGE_PX : 0) +
         (added.has(r.name) ? BADGE_PX : 0) +
-        (skipped.has(r.name) ? BADGE_PX : 0) +
+        (skipped.has(r.name) || isProvisional(r) ? BADGE_PX : 0) +
         (menus ? MENU_PX : 0),
     ),
   );
@@ -76,7 +78,8 @@ function labelWidthFor(
 /**
  * Top models as 90% confidence-interval capsules with a dot at the point estimate. Capsules
  * don't imply a zero, so the truncated axis is honest. Scores sit in their own column on the
- * right. Each row can open its model's other variants ("+N") to add them.
+ * right. Each row can open its model's other variants ("+N") to add them. Provisional rows
+ * (added although they miss the board's requirement) are dashed and hollow, numbered "~".
  */
 export function Leaderboard({
   rows,
@@ -120,9 +123,11 @@ export function Leaderboard({
   const chartHeight = rows.length * rowHeight + AXIS_HEIGHT * (bottomAxis ? 2 : 1) + 8;
   const plotWidth = width - labelWidth - (stacked ? STACKED_SIDE : VALUE_COLUMN);
 
-  // Rows are numbered by their place in this chart, so hidden or filtered-out models don't
-  // leave holes; the rank among every model is in the tooltip and the table.
-  const placeOf = (row: Row): number => rows.indexOf(row) + 1;
+  // Rows are numbered by their place among this chart's qualifying rows, so hidden or
+  // filtered-out models don't leave holes; the rank among every model is in the table.
+  const qualifying = rows.filter((r) => !isProvisional(r));
+  const placeOf = (row: Row): string =>
+    isProvisional(row) ? "~" : row.tiedFirst ? "=1" : String(qualifying.indexOf(row) + 1);
 
   const renderTick = ({ y = 0, payload }: TickProps) => {
     const row = payload && byName.get(payload.value);
@@ -138,11 +143,11 @@ export function Leaderboard({
             data-tied={row.tiedFirst || undefined}
             title={
               row.rank === null
-                ? "Not ranked"
-                : `Rank ${row.tiedFirst ? "=1" : row.rank} among all variants`
+                ? "Provisional: not ranked"
+                : `Rank ${row.tiedFirst ? "=1" : row.rank} among all qualifying variants`
             }
           >
-            {row.tiedFirst ? "=1" : placeOf(row)}
+            {placeOf(row)}
           </span>
           <LabLogo lab={row.lab} size={16} />
           <ModelLink name={row.name} className={classes.name} title={row.name} />
@@ -150,6 +155,7 @@ export function Leaderboard({
             <AddedMark name={row.name} onRemove={() => onRemove(row.name)} />
           )}
           {stacked ? <MarkDots row={row} /> : row.isNew && <NewMark />}
+          {isProvisional(row) && <ProvisionalMark row={row} />}
           {skipped.has(row.name) && (
             <FallbackMark skipped={skipped.get(row.name) ?? []} min={minBenchmarks} />
           )}
@@ -169,6 +175,7 @@ export function Leaderboard({
     const span = (payload.ci_high ?? payload.eci) - lowCi;
     const cx = span > 0 ? x + (w * (payload.eci - lowCi)) / span : x;
     const cy = stacked ? y + STACKED_CAPSULE_Y : y + height / 2;
+    const rough = isProvisional(payload);
     return (
       <g>
         {span > 0 && (
@@ -179,9 +186,10 @@ export function Leaderboard({
             height={14}
             rx={7}
             fill={color}
-            style={{ fillOpacity: "var(--eci-capsule-opacity)" }}
+            style={{ fillOpacity: rough ? 0.08 : "var(--eci-capsule-opacity)" }}
             stroke={color}
-            strokeOpacity={0.85}
+            strokeOpacity={rough ? 1 : 0.85}
+            strokeDasharray={rough ? "4 3" : undefined}
             strokeWidth={1.5}
           />
         )}
@@ -189,9 +197,9 @@ export function Leaderboard({
           cx={cx}
           cy={cy}
           r={6.5}
-          fill={color}
-          stroke="var(--eci-dot-ring)"
-          strokeWidth={2.5}
+          fill={rough ? "var(--eci-hero-surface)" : color}
+          stroke={rough ? color : "var(--eci-dot-ring)"}
+          strokeWidth={rough ? 3 : 2.5}
         />
         {!stacked && (
           <text
@@ -336,6 +344,13 @@ export function LeaderboardKey({
           <circle cx="15" cy="7" r="4.5" className={classes.keyDot} />
         </svg>
         {intervals ? "estimate and 90% CI" : "point estimate (no interval for custom sets)"}
+      </span>
+      <span>
+        <svg width="34" height="14" aria-hidden>
+          <rect x="1" y="3" width="32" height="8" rx="4" className={classes.keyRough} />
+          <circle cx="15" cy="7" r="4" className={classes.keyHollow} />
+        </svg>
+        ~ provisional (added, not ranked)
       </span>
       {dots && <MarkDotsKey />}
       {tie && (

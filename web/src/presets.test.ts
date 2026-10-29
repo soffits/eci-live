@@ -119,3 +119,13 @@ test("options are disabled when their data is missing", () => {
     ["math"],
   );
 });
+
+test("General is all-round: a variant missing an area is provisional there, not on a domain", () => {
+  const terra = row("B", "Lab", "2026-02-01", 140, 2, { missing_areas: ["Coding"] });
+  const rows = [general[0], terra].filter((r) => r !== undefined);
+  const board = applyPreset(rows, site, fit, { preset: "general", custom: [], minBenchmarks: 4 });
+  const b = board.rows.find((r) => r.name === "B");
+  assert.ok(b && b.rank === null && b.gaps.some((g) => g.includes("coding")));
+  const sw = applyPreset(rows, site, fit, { preset: "software", custom: [], minBenchmarks: 2 });
+  assert.equal(sw.rows.find((r) => r.name === "B")?.rank, 1);
+});

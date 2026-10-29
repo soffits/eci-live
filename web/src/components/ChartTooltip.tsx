@@ -1,5 +1,6 @@
 import { Group, Paper, Stack, Text } from "@mantine/core";
 import type { Row } from "../data";
+import { isProvisional, provisionalReason } from "../eligibility";
 import { formatCi, formatDate, formatPercent, formatRange } from "../format";
 import { LabLogo } from "./LabLogo";
 import { ModelBadges } from "./ModelBadges";
@@ -44,12 +45,17 @@ export function ChartTooltip({
         )}
         {row.general_eci === row.eci ? (
           <Text size="xs" c="dimmed">
-            {row.benchmarks} benchmarks{row.rank === null ? " (too few to rank)" : ""}
+            {row.benchmarks} benchmarks
           </Text>
         ) : (
           <Text size="xs" c="dimmed">
             {row.benchmarks} benchmarks in this selection · general ECI{" "}
             {row.general_eci === null ? "none" : row.general_eci.toFixed(1)}
+          </Text>
+        )}
+        {isProvisional(row) && (
+          <Text size="xs" c="dimmed" fs="italic">
+            {provisionalReason(row)}
           </Text>
         )}
         <ModelBadges row={row} />

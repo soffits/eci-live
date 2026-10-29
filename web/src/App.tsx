@@ -229,8 +229,18 @@ export function App({
     () => new Map(Object.entries(site.slugs).map(([version, s]) => [s, version])),
     [site.slugs],
   );
+  // Detail pages show the General (all-round) board at its default minimum.
+  const board = useMemo(
+    () =>
+      applyPreset(general, site, fit, {
+        preset: "general",
+        custom: [],
+        minBenchmarks: defaultMinBenchmarks("general"),
+      }).rows,
+    [general, site, fit],
+  );
   const detailRow =
-    slug === null ? undefined : general.find((r) => r.version === versionOfSlug.get(slug));
+    slug === null ? undefined : board.find((r) => r.version === versionOfSlug.get(slug));
   const slugOf = (name: string) => site.slugs[versionOfName.get(name) ?? ""];
   const nav: ModelNav = {
     hrefOf: (name) => {
@@ -282,7 +292,7 @@ export function App({
             row={detailRow}
             slug={slug}
             site={site}
-            variants={general.filter((r) => r.group === detailRow.group).sort(preferred)}
+            variants={board.filter((r) => r.group === detailRow.group).sort(preferred)}
             backHref={detailUrl(window.location.search, { m: null }) || window.location.pathname}
             onBack={() => void setSlug(null)}
           />
@@ -465,12 +475,7 @@ export function App({
                     : `Search, sort and page through every model${isGeneral ? "" : ` scored on ${preset.label}`}.`
                 }
               />
-              <ModelTable
-                rows={rows}
-                hasPrevious={hasPrevious}
-                intervals={preset.intervals}
-                minBenchmarks={minBenchmarks}
-              />
+              <ModelTable rows={rows} hasPrevious={hasPrevious} intervals={preset.intervals} />
             </section>
 
             <Divider my={56} />

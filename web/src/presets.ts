@@ -74,7 +74,7 @@ export function ranked(rows: Row[], min: number, general = false): Row[] {
       const gaps = gapsOf(r, min, general);
       const rank = gaps.length === 0 ? ++place : null;
       return general
-        ? { ...r, rank, gaps }
+        ? { ...r, rank, gaps, tiedFirst: r.tiedFirst && rank !== null }
         : {
             ...r,
             rank,

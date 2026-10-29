@@ -4,9 +4,10 @@ import { DataTable, type DataTableSortStatus } from "mantine-datatable";
 import { useMemo, useState } from "react";
 import { TABLE_PAGE_SIZE, WEIGHTS } from "../config";
 import type { Row } from "../data";
+import { provisionalReason } from "../eligibility";
 import { formatDate, formatRange } from "../format";
 import { LabLogo, useLabColor } from "./LabLogo";
-import { MarkDots, MarkDotsKey, NewMark, ThinMark } from "./ModelBadges";
+import { MarkDots, MarkDotsKey, NewMark, ProvisionalMark } from "./ModelBadges";
 import { ModelLink } from "./ModelLink";
 import classes from "./ModelTable.module.css";
 
@@ -71,17 +72,16 @@ function SortIcon({ path }: { path: string }) {
   );
 }
 
-/** Every scored variant, thin ones included but unranked: searchable, sortable, paginated. */
+/** Every scored variant, provisional ones included but unranked: searchable, sortable,
+ * paginated. */
 export function ModelTable({
   rows,
   hasPrevious,
   intervals = true,
-  minBenchmarks,
 }: {
   rows: Row[];
   hasPrevious: boolean;
   intervals?: boolean;
-  minBenchmarks: number;
 }) {
   const narrow = useMediaQuery("(max-width: 48em)") ?? false;
   const [query, setQuery] = useState("");
@@ -185,7 +185,7 @@ export function ModelTable({
               <Tooltip
                 label={
                   r.rank === null
-                    ? `Fewer than ${minBenchmarks} benchmarks: not ranked`
+                    ? provisionalReason(r)
                     : r.rank_low === null || r.rank_high === null
                       ? "No rank interval"
                       : `90% rank interval ${formatRange(r.rank_low, r.rank_high)}`
@@ -209,7 +209,7 @@ export function ModelTable({
                   <ModelLink name={r.name} />
                 </Text>
                 {narrow ? <MarkDots row={r} /> : r.isNew && <NewMark />}
-                {r.rank === null && <ThinMark row={r} min={minBenchmarks} />}
+                {r.rank === null && <ProvisionalMark row={r} />}
               </Group>
             ),
           },
