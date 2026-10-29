@@ -18,6 +18,7 @@ import {
   presetOptions,
   type Selection,
 } from "../presets";
+import { DROPDOWN } from "../theme";
 import classes from "./DataSelection.module.css";
 
 /** Custom-selection options grouped by each benchmark's first domain tag. */
@@ -103,7 +104,7 @@ export function DataSelection({
             allowDeselect={false}
             size="md"
             w="100%"
-            comboboxProps={{ withinPortal: true }}
+            comboboxProps={{ ...DROPDOWN, withinPortal: true }}
           />
         ) : (
           <Input.Wrapper label="Scores">
