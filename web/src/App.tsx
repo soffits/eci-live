@@ -2,10 +2,12 @@ import {
   ActionIcon,
   Anchor,
   Badge,
+  Box,
   Container,
   Divider,
   Grid,
   Group,
+  SegmentedControl,
   Stack,
   Text,
   Title,
@@ -26,8 +28,15 @@ import { LINKS, NEW_WITHIN_DAYS, TOP_N } from "./config";
 import { type SiteData, toRows } from "./data";
 import { applyFilters, type Filters, monthBounds } from "./filters";
 import { formatDate } from "./format";
+import { currentGeneration } from "./generations";
 
 const LEGEND_LABS = 12;
+
+type TopView = "current" | "all";
+const TOP_VIEWS: { value: TopView; label: string }[] = [
+  { value: "current", label: "Current generation" },
+  { value: "all", label: "Every model" },
+];
 
 function SectionTitle({
   eyebrow,
@@ -90,6 +99,8 @@ export function App({ data }: { data: Promise<SiteData> }) {
   const labs = labCounts.map(([lab]) => lab);
   const [filters, setFilters] = useState<Filters>({ weights: "all", labs: [], months: bounds });
   const rows = useMemo(() => applyFilters(all, filters, bounds), [all, filters, bounds]);
+  const [topView, setTopView] = useState<TopView>("current");
+  const current = useMemo(() => currentGeneration(rows), [rows]);
   const toggleLab = (lab: string) =>
     setFilters((f) => ({
       ...f,
@@ -98,7 +109,8 @@ export function App({ data }: { data: Promise<SiteData> }) {
 
   const { latest } = site;
   const hasPrevious = Object.keys(site.previous_eci).length > 0;
-  const top = rows.slice(0, TOP_N);
+  const top = (topView === "current" ? current : rows).slice(0, TOP_N);
+  const hidden = rows.length - current.length;
 
   return (
     <>
@@ -150,12 +162,26 @@ export function App({ data }: { data: Promise<SiteData> }) {
         <section className={classes.hero}>
           <Grid gap={0}>
             <Grid.Col span={{ base: 12, lg: 8 }} className={classes.chartCol}>
-              <Group justify="space-between" align="flex-end" mb="sm" gap="xs">
+              <Group justify="space-between" align="center" mb={6} gap="xs">
                 <Title order={2} className={classes.sectionTitle}>
                   Top {top.length} by ECI
                 </Title>
-                <LeaderboardKey />
+                <SegmentedControl<TopView>
+                  size="xs"
+                  value={topView}
+                  onChange={setTopView}
+                  data={TOP_VIEWS}
+                  aria-label="Which models to rank"
+                />
               </Group>
+              <Text size="xs" c="dimmed" mb="sm" className={classes.balance}>
+                {topView === "current"
+                  ? `A model is hidden once its lab releases a newer one with an ECI at least as high (${hidden} hidden; ranks count every model).`
+                  : "Every model, including ones their lab has since matched or beaten."}
+              </Text>
+              <Box mb="sm">
+                <LeaderboardKey />
+              </Box>
               {top.length > 0 ? (
                 <Leaderboard rows={top} />
               ) : (
