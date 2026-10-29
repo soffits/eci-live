@@ -1,6 +1,7 @@
 """Versioned snapshots: one JSON file per distinct input zip."""
 
 import json
+import re
 from datetime import datetime
 from pathlib import Path
 from typing import cast
@@ -13,6 +14,20 @@ def snapshot_id(fetched_at: str, sha256: str) -> str:
     """Sortable, filename- and tag-safe id, e.g. `2026-10-29T0329Z-b149788e`."""
     stamp = datetime.fromisoformat(fetched_at).strftime("%Y-%m-%dT%H%MZ")
     return f"{stamp}-{sha256[:8]}"
+
+
+def slugs(names: list[str]) -> dict[str, str]:
+    """URL- and file-safe ids for model names, unique in the given order."""
+    taken: set[str] = set()
+    out: dict[str, str] = {}
+    for name in names:
+        base = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-") or "model"
+        slug, n = base, 2
+        while slug in taken:
+            slug, n = f"{base}-{n}", n + 1
+        taken.add(slug)
+        out[name] = slug
+    return out
 
 
 def _dir(history: Path) -> Path:
@@ -55,4 +70,5 @@ def site_data(snapshots: list[Snapshot]) -> SiteData:
         ],
         previous_eci={m["name"]: m["eci"] for m in previous},
         first_seen=first_seen,
+        slugs=slugs([m["name"] for m in snapshots[-1]["models"]]),
     )

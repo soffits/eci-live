@@ -40,7 +40,9 @@ this under *This snapshot*.
   provenance. `git log` on that branch shows how the scores moved over time.
 - The exact input zip of each snapshot is attached to the GitHub release
   `snapshot-<id>`, because Epoch overwrites the zip daily.
-- The site's own data file is <https://soffits.github.io/eci-live/eci.json>.
+- The site's own data file is <https://soffits.github.io/eci-live/eci.json>; each model's
+  detail page reads `models/<slug>.json` next to it, with every raw result in the zip for
+  that model and the fitted difficulty and slope of each benchmark it was scored on.
 
 ## Reproduce a snapshot
 
@@ -59,7 +61,7 @@ snapshot. The fit is deterministic, but tiny floating-point differences are
 possible on other CPUs or BLAS builds.
 
 To preview the site, run `npm ci && npm run dev` in `web/`. The command above writes
-`web/public/eci.json` for it.
+`web/public/eci.json` and `web/public/models/` for it.
 
 ## Credits
 

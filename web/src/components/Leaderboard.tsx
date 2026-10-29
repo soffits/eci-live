@@ -6,6 +6,7 @@ import { ChartTooltip } from "./ChartTooltip";
 import { LabLogo, useLabColor } from "./LabLogo";
 import classes from "./Leaderboard.module.css";
 import { AddedMark, NewMark, PreviewMark } from "./ModelBadges";
+import { ModelLink, useModelNav } from "./ModelLink";
 
 const ROW_HEIGHT = 32;
 /** On phones each row is two lines: name and value above, capsule below at full width. */
@@ -56,6 +57,7 @@ export function Leaderboard({
   const stacked = width > 0 && width < STACKED_BELOW_PX;
   const rowHeight = stacked ? STACKED_ROW_HEIGHT : ROW_HEIGHT;
   const colorOf = useLabColor();
+  const { open } = useModelNav();
   const byName = new Map(rows.map((r) => [r.name, r]));
   const low = Math.min(...rows.map((r) => r.ci_low ?? r.eci));
   const high = Math.max(...rows.map((r) => r.ci_high ?? r.eci));
@@ -82,9 +84,7 @@ export function Leaderboard({
             {row.tiedFirst ? "=1" : row.rank}
           </span>
           <LabLogo lab={row.lab} size={16} />
-          <span className={classes.name} title={row.name}>
-            {row.name}
-          </span>
+          <ModelLink name={row.name} className={classes.name} title={row.name} />
           {added.has(row.name) && onRemove && (
             <AddedMark name={row.name} onRemove={() => onRemove(row.name)} />
           )}
@@ -204,6 +204,8 @@ export function Leaderboard({
             dataKey={(r: Row) => [r.ci_low ?? r.eci, r.ci_high ?? r.eci]}
             shape={renderCapsule}
             isAnimationActive={false}
+            cursor="pointer"
+            onClick={(bar) => bar.payload && open((bar.payload as Row).name)}
           />
         </BarChart>
       )}

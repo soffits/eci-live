@@ -4,6 +4,7 @@ import type { Row, Snapshot } from "../data";
 import { formatPercent, formatRange } from "../format";
 import classes from "./Insights.module.css";
 import { LabLogo, useLabColor } from "./LabLogo";
+import { ModelLink } from "./ModelLink";
 
 const LAB_ROWS = 7;
 const TINT_STEP = 0.35;
@@ -25,7 +26,7 @@ function ModelLine({ row, value }: { row: Row; value: ReactNode }) {
       <Group gap={8} wrap="nowrap" miw={0}>
         <LabLogo lab={row.lab} size={16} />
         <Text size="sm" fw={600} truncate="end">
-          {row.name}
+          <ModelLink name={row.name} />
         </Text>
       </Group>
       <Text size="sm" className="num" c="dimmed" style={{ flex: "none" }}>

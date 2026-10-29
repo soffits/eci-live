@@ -14,7 +14,7 @@ import {
   useComputedColorScheme,
   useMantineColorScheme,
 } from "@mantine/core";
-import { parseAsNativeArrayOf, parseAsString, useQueryState } from "nuqs";
+import { createSerializer, parseAsNativeArrayOf, parseAsString, useQueryState } from "nuqs";
 import { type ReactNode, use, useMemo, useState } from "react";
 import classes from "./App.module.css";
 import { About } from "./components/About";
@@ -23,6 +23,8 @@ import { Insights } from "./components/Insights";
 import { LabLegend } from "./components/LabLegend";
 import { useLabColor } from "./components/LabLogo";
 import { Leaderboard, LeaderboardKey } from "./components/Leaderboard";
+import { type ModelNav, ModelNavContext } from "./components/ModelLink";
+import { ModelPage } from "./components/ModelPage";
 import { ModelPicker } from "./components/ModelPicker";
 import { ModelTable } from "./components/ModelTable";
 import { Timeline } from "./components/Timeline";
@@ -34,6 +36,11 @@ import { currentGeneration } from "./generations";
 import { withPicked } from "./pick";
 
 type TopView = "current" | "all";
+
+// The detail page of a model is `?m=<slug>`: it survives a refresh on GitHub Pages and can
+// be shared, and each visit is a history entry so Back returns to the list.
+const detailParam = parseAsString.withOptions({ history: "push", scroll: true });
+const detailUrl = createSerializer({ m: parseAsString });
 const TOP_VIEWS: { value: TopView; label: string }[] = [
   { value: "current", label: "Current generation" },
   { value: "all", label: "Every model" },
@@ -116,6 +123,23 @@ export function App({ data }: { data: Promise<SiteData> }) {
       return { ...f, labs: on ? rest : [...rest, ...group] };
     });
 
+  const [slug, setSlug] = useQueryState("m", detailParam);
+  const nameOf = useMemo(
+    () => new Map(Object.entries(site.slugs).map(([name, s]) => [s, name])),
+    [site.slugs],
+  );
+  const detailRow = slug === null ? undefined : all.find((r) => r.name === nameOf.get(slug));
+  const nav: ModelNav = {
+    hrefOf: (name) => {
+      const target = site.slugs[name];
+      return target ? detailUrl(window.location.search, { m: target }) : null;
+    },
+    open: (name) => {
+      const target = site.slugs[name];
+      if (target) void setSlug(target);
+    },
+  };
+
   const { latest } = site;
   const hasPrevious = Object.keys(site.previous_eci).length > 0;
   const top = (topView === "current" ? current : rows).slice(0, TOP_N);
@@ -124,7 +148,7 @@ export function App({ data }: { data: Promise<SiteData> }) {
   const unpick = (name: string) => setPicked(pickedKnown.filter((n) => n !== name));
 
   return (
-    <>
+    <ModelNavContext value={nav}>
       <Spectrum labs={labCounts.filter(([lab]) => lab !== "Unknown")} />
       <Container size="xl" className={classes.page}>
         <Group component="header" justify="space-between" py="md" wrap="nowrap">
@@ -149,96 +173,110 @@ export function App({ data }: { data: Promise<SiteData> }) {
           </Group>
         </Group>
 
-        <Stack gap={6} mt={{ base: "sm", md: "lg" }} mb="lg">
-          <Title className={classes.headline}>
-            Which AI model is the most <span className={classes.gradientText}>capable</span> today?
-          </Title>
-          <Text c="dimmed" className={`${classes.balance} ${classes.lede}`} maw={820}>
-            The Epoch Capabilities Index, refit daily from Epoch AI's open benchmark data in public
-            CI, with 90% confidence intervals on every score and rank.
-          </Text>
-        </Stack>
-
-        <div className={classes.toolbar}>
-          <FilterBar
-            value={filters}
-            onChange={setFilters}
-            labs={labs}
-            bounds={bounds}
-            shown={rows.length}
-            total={all.length}
+        {detailRow && slug ? (
+          <ModelPage
+            row={detailRow}
+            slug={slug}
+            site={site}
+            backHref={detailUrl(window.location.search, { m: null }) || window.location.pathname}
+            onBack={() => void setSlug(null)}
           />
-        </div>
-
-        <section className={classes.hero}>
-          <Grid gap={0}>
-            <Grid.Col span={{ base: 12, lg: 8 }} className={classes.chartCol}>
-              <Group justify="space-between" align="center" mb={6} gap="xs">
-                <Title order={2} className={classes.sectionTitle}>
-                  Top {top.length} by ECI{chart.added.size > 0 && ` + ${chart.added.size} added`}
-                </Title>
-                <SegmentedControl<TopView>
-                  size="xs"
-                  value={topView}
-                  onChange={setTopView}
-                  data={TOP_VIEWS}
-                  aria-label="Which models to rank"
-                />
-              </Group>
-              <Text size="xs" c="dimmed" mb="sm" className={classes.balance}>
-                {topView === "current"
-                  ? `A model is hidden once its lab releases a newer one with an ECI at least as high (${hidden} hidden; ranks count every model).`
-                  : "Every model, including ones their lab has since matched or beaten."}
+        ) : (
+          <>
+            <Stack gap={6} mt={{ base: "sm", md: "lg" }} mb="lg">
+              <Title className={classes.headline}>
+                Which AI model is the most <span className={classes.gradientText}>capable</span>{" "}
+                today?
+              </Title>
+              <Text c="dimmed" className={`${classes.balance} ${classes.lede}`} maw={820}>
+                The Epoch Capabilities Index, refit daily from Epoch AI's open benchmark data in
+                public CI, with 90% confidence intervals on every score and rank.
               </Text>
-              <Box mb="sm">
-                <ModelPicker models={all} value={pickedKnown} onChange={setPicked} />
-              </Box>
-              <Box mb="sm">
-                <LeaderboardKey />
-              </Box>
-              {chart.rows.length > 0 ? (
-                <Leaderboard rows={chart.rows} added={chart.added} onRemove={unpick} />
-              ) : (
-                <Text c="dimmed" py="xl">
-                  No models match these filters.
-                </Text>
-              )}
-            </Grid.Col>
-            <Grid.Col span={{ base: 12, lg: 4 }} className={classes.insightCol}>
-              <Insights rows={all} snapshot={latest} />
-            </Grid.Col>
-          </Grid>
-        </section>
+            </Stack>
 
-        <section className={classes.card}>
-          <SectionTitle
-            eyebrow="Trend"
-            title="ECI over time"
-            subtitle="Each dot is a model at its release date. The stepped line is the frontier: every model that set a new record, named where space allows."
-          />
-          <Timeline rows={rows} />
-          <Group justify="space-between" mt="md" gap="sm">
-            <LabLegend labs={datedLabs} selected={filters.labs} onToggle={toggleLabs} />
-          </Group>
-        </section>
+            <div className={classes.toolbar}>
+              <FilterBar
+                value={filters}
+                onChange={setFilters}
+                labs={labs}
+                bounds={bounds}
+                shown={rows.length}
+                total={all.length}
+              />
+            </div>
 
-        <section className={classes.card}>
-          <SectionTitle
-            eyebrow="Every model"
-            title="Full table"
-            subtitle={
-              hasPrevious
-                ? "Search, sort and page through every scored model. Δ is the change since the previous snapshot."
-                : "Search, sort and page through every scored model."
-            }
-          />
-          <ModelTable rows={rows} hasPrevious={hasPrevious} />
-        </section>
+            <section className={classes.hero}>
+              <Grid gap={0}>
+                <Grid.Col span={{ base: 12, lg: 8 }} className={classes.chartCol}>
+                  <Group justify="space-between" align="center" mb={6} gap="xs">
+                    <Title order={2} className={classes.sectionTitle}>
+                      Top {top.length} by ECI
+                      {chart.added.size > 0 && ` + ${chart.added.size} added`}
+                    </Title>
+                    <SegmentedControl<TopView>
+                      size="xs"
+                      value={topView}
+                      onChange={setTopView}
+                      data={TOP_VIEWS}
+                      aria-label="Which models to rank"
+                    />
+                  </Group>
+                  <Text size="xs" c="dimmed" mb="sm" className={classes.balance}>
+                    {topView === "current"
+                      ? `A model is hidden once its lab releases a newer one with an ECI at least as high (${hidden} hidden; ranks count every model).`
+                      : "Every model, including ones their lab has since matched or beaten."}
+                  </Text>
+                  <Box mb="sm">
+                    <ModelPicker models={all} value={pickedKnown} onChange={setPicked} />
+                  </Box>
+                  <Box mb="sm">
+                    <LeaderboardKey />
+                  </Box>
+                  {chart.rows.length > 0 ? (
+                    <Leaderboard rows={chart.rows} added={chart.added} onRemove={unpick} />
+                  ) : (
+                    <Text c="dimmed" py="xl">
+                      No models match these filters.
+                    </Text>
+                  )}
+                </Grid.Col>
+                <Grid.Col span={{ base: 12, lg: 4 }} className={classes.insightCol}>
+                  <Insights rows={all} snapshot={latest} />
+                </Grid.Col>
+              </Grid>
+            </section>
 
-        <Divider my={56} />
-        <section>
-          <About snapshot={latest} />
-        </section>
+            <section className={classes.card}>
+              <SectionTitle
+                eyebrow="Trend"
+                title="ECI over time"
+                subtitle="Each dot is a model at its release date. The stepped line is the frontier: every model that set a new record, named where space allows."
+              />
+              <Timeline rows={rows} />
+              <Group justify="space-between" mt="md" gap="sm">
+                <LabLegend labs={datedLabs} selected={filters.labs} onToggle={toggleLabs} />
+              </Group>
+            </section>
+
+            <section className={classes.card}>
+              <SectionTitle
+                eyebrow="Every model"
+                title="Full table"
+                subtitle={
+                  hasPrevious
+                    ? "Search, sort and page through every scored model. Δ is the change since the previous snapshot."
+                    : "Search, sort and page through every scored model."
+                }
+              />
+              <ModelTable rows={rows} hasPrevious={hasPrevious} />
+            </section>
+
+            <Divider my={56} />
+            <section>
+              <About snapshot={latest} />
+            </section>
+          </>
+        )}
 
         <Group justify="space-between" py={40} gap="xs">
           <Text size="sm" c="dimmed">
@@ -249,6 +287,6 @@ export function App({ data }: { data: Promise<SiteData> }) {
           </Text>
         </Group>
       </Container>
-    </>
+    </ModelNavContext>
   );
 }

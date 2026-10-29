@@ -6,6 +6,7 @@ import type { Row } from "../data";
 import { formatDate, formatRange } from "../format";
 import { LabLogo, useLabColor } from "./LabLogo";
 import { NewMark, PreviewMark } from "./ModelBadges";
+import { ModelLink } from "./ModelLink";
 
 type SortKey = "rank" | "name" | "lab" | "released" | "eci" | "benchmarks" | "delta";
 
@@ -150,7 +151,7 @@ export function ModelTable({ rows, hasPrevious }: { rows: Row[]; hasPrevious: bo
                 <LabLogo lab={r.lab} />
                 <Group gap="2px 6px">
                   <Text size="sm" fw={600}>
-                    {r.name}
+                    <ModelLink name={r.name} />
                   </Text>
                   {r.isNew && <NewMark />}
                   {!r.onEpoch && <PreviewMark row={r} compact />}

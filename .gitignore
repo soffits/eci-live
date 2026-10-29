@@ -8,3 +8,4 @@ __pycache__/
 node_modules/
 web/dist/
 web/public/eci.json
+web/public/models/

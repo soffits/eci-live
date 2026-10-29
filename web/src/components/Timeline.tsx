@@ -15,6 +15,7 @@ import type { Row } from "../data";
 import { niceTicks } from "../scale";
 import { ChartTooltip } from "./ChartTooltip";
 import { useLabColor } from "./LabLogo";
+import { useModelNav } from "./ModelLink";
 
 type Dated = Row & { released: number };
 
@@ -62,6 +63,8 @@ export function Timeline({ rows }: { rows: Row[] }) {
   const { ref, width } = useElementSize();
   const narrow = width > 0 && width < 600;
   const colorOf = useLabColor();
+  const { open } = useModelNav();
+  const openPoint = (point: { payload?: Row }) => point.payload && open(point.payload.name);
   const dated = rows.filter((r): r is Dated => r.released !== null);
   if (dated.length === 0) return <div ref={ref} />;
 
@@ -145,7 +148,7 @@ export function Timeline({ rows }: { rows: Row[] }) {
             cursor={{ strokeDasharray: "3 3" }}
             wrapperStyle={{ userSelect: "none" }}
           />
-          <Scatter data={shown} isAnimationActive={false}>
+          <Scatter data={shown} isAnimationActive={false} cursor="pointer" onClick={openPoint}>
             {shown.map((r) => (
               <Cell
                 key={r.name}
@@ -163,6 +166,8 @@ export function Timeline({ rows }: { rows: Row[] }) {
             shape="diamond"
             fill="var(--mantine-color-text)"
             isAnimationActive={false}
+            cursor="pointer"
+            onClick={openPoint}
           >
             {!narrow && <LabelList dataKey="name" content={renderLabel} />}
           </Scatter>
