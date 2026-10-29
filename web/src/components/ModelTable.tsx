@@ -150,7 +150,6 @@ export function ModelTable({
         withTableBorder
         borderRadius="md"
         classNames={{ pagination: `chrome ${classes.pagination}` }}
-        maxHeight={narrow ? undefined : "78vh"}
         verticalSpacing={narrow ? 10 : 8}
         horizontalSpacing={narrow ? 6 : "sm"}
         verticalAlign="center"
