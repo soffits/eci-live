@@ -45,6 +45,7 @@ import { ModelPicker } from "./components/ModelPicker";
 import { ModelTable } from "./components/ModelTable";
 import { LINKS, NEW_WITHIN_DAYS, TOP_N } from "./config";
 import { type FitData, type Row, type SiteData, toRows } from "./data";
+import { showsByDefault } from "./eligibility";
 import { applyFilters, type Filters, monthBounds } from "./filters";
 import { formatDate } from "./format";
 import { currentGeneration, LINES_PER_LAB } from "./generations";
@@ -197,7 +198,7 @@ export function App({
   // its line even before it qualifies (drawn provisional, unranked), instead of the line
   // falling back to the previous generation.
   const lineup = useMemo(() => defaultVariants(rows, true), [rows]);
-  const current = useMemo(() => currentGeneration(lineup.rows), [lineup]);
+  const current = useMemo(() => currentGeneration(lineup.rows).filter(showsByDefault), [lineup]);
   // Variants the user added to the chart, kept in the URL (?model=<version>) for sharing.
   const [pickedVersions, setPickedVersions] = useQueryState(
     "model",

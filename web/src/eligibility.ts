@@ -20,6 +20,17 @@ export function gapsOf(
   return gaps;
 }
 
+/**
+ * The fewest benchmarks a provisional row needs to stand in the default current line-up. With
+ * one or two results its position says little, so it waits until picked or better covered.
+ */
+export const MIN_PROVISIONAL_BENCHMARKS = 3;
+
+/** Whether a row belongs in the default line-up: ranked, or provisional with some evidence. */
+export function showsByDefault(row: Pick<Row, "gaps" | "benchmarks">): boolean {
+  return !isProvisional(row) || row.benchmarks >= MIN_PROVISIONAL_BENCHMARKS;
+}
+
 /** A ranked row qualifies for its board; a provisional one is shown only if picked. */
 export function isProvisional(row: Pick<Row, "gaps">): boolean {
   return row.gaps.length > 0;
