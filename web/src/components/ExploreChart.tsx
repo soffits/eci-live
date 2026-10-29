@@ -333,13 +333,11 @@ export function ExploreChart({
           {offScale > 0 &&
             `${offScale === 1 ? "1 model" : `${offScale} models`} below ${yMin} not shown. `}
           {missing.length > 0 &&
-            view !== "time" &&
-            (view === "compute"
-              ? `${missing.length} of ${rows.length} models have no training-compute estimate in Epoch's data and are not plotted:`
-              : `${missing.length} models have no general ECI (scored by Epoch for cyber only):`)}
+            view === "compute" &&
+            `${missing.length} of ${rows.length} models have no training-compute estimate in Epoch AI's data and are not plotted:`}
         </Text>
       )}
-      {missing.length > 0 && view !== "time" && (
+      {missing.length > 0 && view === "compute" && (
         <Spoiler maxHeight={44} showLabel="Show all" hideLabel="Show fewer" mt={2}>
           <Text size="sm" c="dimmed">
             {missing.map((r) => r.name).join(", ")}

@@ -67,7 +67,7 @@ function Hash({ value, href }: { value: string; href?: string }) {
 
 /** Plain-language method, provenance of this exact snapshot, and credits. */
 export function About({ snapshot }: { snapshot: Snapshot }) {
-  const { input, fit, build, drift } = snapshot;
+  const { input, fit, build } = snapshot;
   return (
     <Stack gap={40}>
       <SimpleGrid cols={{ base: 1, md: 3 }} spacing={40}>
@@ -91,10 +91,6 @@ export function About({ snapshot }: { snapshot: Snapshot }) {
               It fits ECI with Epoch's own <Anchor href={LINKS.eciPublic}>eci-public</Anchor>,
               pinned to one commit, plus {fit.bootstrap_samples} bootstrap refits for{" "}
               {Math.round(fit.ci_level * 100)}% intervals on scores and ranks.
-            </List.Item>
-            <List.Item>
-              The run fails if any model drifts more than {drift.tolerance} points from Epoch's
-              published score.
             </List.Item>
             <List.Item>
               Every snapshot is kept on the{" "}
@@ -157,12 +153,7 @@ export function About({ snapshot }: { snapshot: Snapshot }) {
             )}
           </Fact>
           <Fact label="Bootstrap">
-            {fit.bootstrap_samples} refits, seed {fit.bootstrap_seed}
-            {fit.bootstrap_chunks ? `, ${fit.bootstrap_chunks} chunks` : ""}
-          </Fact>
-          <Fact label="Agreement with Epoch">
-            mean gap {drift.mean_abs.toFixed(2)}, max {drift.max_abs.toFixed(2)} over{" "}
-            {drift.shared_models} models
+            {fit.bootstrap_samples} refits, seed {fit.bootstrap_seed}, {fit.bootstrap_chunks} chunks
           </Fact>
         </SimpleGrid>
       </div>

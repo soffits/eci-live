@@ -25,6 +25,7 @@ export function ChartTooltip({
         </Group>
         <Text size="xs" c="dimmed">
           {row.lab} · released {formatDate(row.released)}
+          {row.effort ? ` · effort: ${row.effort}` : ""}
         </Text>
         <Text size="sm">
           <Text span fw={800} className="num">
@@ -38,13 +39,12 @@ export function ChartTooltip({
         {row.rank_low !== null && row.rank_high !== null && (
           <Text size="xs" c="dimmed">
             Rank {formatRange(row.rank_low, row.rank_high)} (90%)
-            {row.p_first ? ` · #1 in ${formatPercent(row.p_first)} of refits` : ""}
+            {row.p_first ? ` · #1 in ${formatPercent(row.p_first)} of draws` : ""}
           </Text>
         )}
         {row.general_eci === row.eci ? (
           <Text size="xs" c="dimmed">
-            {row.benchmarks} benchmarks · Epoch:{" "}
-            {row.official_eci === null ? "not published yet" : row.official_eci.toFixed(1)}
+            {row.benchmarks} benchmarks{row.rank === null ? " (too few to rank)" : ""}
           </Text>
         ) : (
           <Text size="xs" c="dimmed">

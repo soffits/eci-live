@@ -46,12 +46,12 @@ import {
   isThin,
   pullPoints,
   splitResults,
-  versionLabel,
 } from "../detail";
 import { formatDate, formatPercent, formatRange } from "../format";
 import { niceTicks } from "../scale";
 import { LabLogo } from "./LabLogo";
 import { ModelBadges } from "./ModelBadges";
+import { ModelLink } from "./ModelLink";
 import classes from "./ModelPage.module.css";
 
 const details = new Map<string, Promise<ModelDetail>>();
@@ -89,40 +89,99 @@ function Stat({ label, value, sub }: { label: string; value: string; sub: React.
 }
 
 function Headline({ row, site }: { row: Row; site: SiteData }) {
+  const { fit } = site.latest;
   const ci =
     row.ci_low === null || row.ci_high === null
-      ? "a scale anchor, fixed by definition"
+      ? "no interval"
       : `90% CI ${row.ci_low.toFixed(1)}–${row.ci_high.toFixed(1)}`;
-  const rankRange =
-    row.rank_low === null || row.rank_high === null
-      ? "no rank interval"
-      : `90% rank interval ${formatRange(row.rank_low, row.rank_high)}`;
-  const diff = row.official_eci === null ? null : row.eci - row.official_eci;
+  const ranked = row.rank !== null && row.rank_low !== null && row.rank_high !== null;
   return (
     <SimpleGrid cols={{ base: 2, md: 4 }} spacing={0} className={classes.stats}>
       <Stat label="ECI" value={row.eci.toFixed(1)} sub={ci} />
-      <Stat label="Rank" value={row.tiedFirst ? "=1" : `#${row.rank}`} sub={rankRange} />
       <Stat
-        label="Chance of #1"
-        value={formatPercent(row.p_first ?? 0)}
-        sub={`of ${site.latest.fit.bootstrap_samples} bootstrap refits`}
+        label="Rank"
+        value={row.rank === null ? "—" : row.tiedFirst ? "=1" : `#${row.rank}`}
+        sub={
+          ranked
+            ? `90% rank interval ${formatRange(row.rank_low ?? 0, row.rank_high ?? 0)}`
+            : "not ranked"
+        }
       />
       <Stat
-        label="Epoch's score"
-        value={row.official_eci === null ? "—" : row.official_eci.toFixed(2)}
+        label="Chance of #1"
+        value={row.p_first === null ? "—" : formatPercent(row.p_first)}
+        sub={`of ${(fit.bootstrap_samples * fit.resamples_per_draw).toLocaleString("en")} draws`}
+      />
+      <Stat
+        label="Benchmarks"
+        value={String(row.benchmarks)}
         sub={
-          diff === null
-            ? "not published by Epoch yet"
-            : `this refit ${row.eci.toFixed(2)}, ${diff >= 0 ? "+" : "−"}${Math.abs(diff).toFixed(2)}`
+          row.benchmarks >= fit.rank_min_benchmarks
+            ? "results behind the score"
+            : `ranked from ${fit.rank_min_benchmarks}`
         }
       />
     </SimpleGrid>
   );
 }
 
+/** Every variant of this model, this one highlighted, each linking to its page. */
+function Variants({ row, variants }: { row: Row; variants: Row[] }) {
+  return (
+    <Table.ScrollContainer minWidth={420}>
+      <Table
+        highlightOnHover
+        verticalSpacing={6}
+        className="num"
+        borderColor="var(--eci-card-border)"
+      >
+        <Table.Thead>
+          <Table.Tr>
+            <Table.Th>Variant</Table.Th>
+            <Table.Th>Effort</Table.Th>
+            <Table.Th ta="right">ECI</Table.Th>
+            <Table.Th ta="right" visibleFrom="sm">
+              90% CI
+            </Table.Th>
+            <Table.Th ta="right">Benchmarks</Table.Th>
+          </Table.Tr>
+        </Table.Thead>
+        <Table.Tbody>
+          {variants.map((v) => (
+            <Table.Tr key={v.version} fw={v.version === row.version ? 700 : undefined}>
+              <Table.Td>
+                {v.version === row.version ? v.name : <ModelLink name={v.name} />}
+              </Table.Td>
+              <Table.Td c="dimmed">
+                {v.effort ?? "not recorded"}
+                {v.pro && v.effort === null ? " (pro)" : ""}
+              </Table.Td>
+              <Table.Td ta="right">{v.eci.toFixed(1)}</Table.Td>
+              <Table.Td ta="right" c="dimmed" visibleFrom="sm">
+                {v.ci_low === null || v.ci_high === null
+                  ? ""
+                  : `${v.ci_low.toFixed(1)}–${v.ci_high.toFixed(1)}`}
+              </Table.Td>
+              <Table.Td ta="right">{v.benchmarks}</Table.Td>
+            </Table.Tr>
+          ))}
+        </Table.Tbody>
+      </Table>
+    </Table.ScrollContainer>
+  );
+}
+
 function Facts({ row, detail, site }: { row: Row; detail: ModelDetail; site: SiteData }) {
-  const firstSeen = site.first_seen[row.name] ?? null;
+  const firstSeen = site.first_seen[row.version] ?? null;
   const facts: [string, React.ReactNode][] = [
+    ["Model", row.group],
+    ["Reasoning setting", row.effort ?? "not recorded in the version id"],
+    [
+      "Version id",
+      <Text span size="sm" ff="monospace" key="id">
+        {row.version}
+      </Text>,
+    ],
     ["Lab", detail.organization ?? row.lab],
     ["Released", formatDate(row.release_date)],
     [
@@ -152,16 +211,6 @@ function Facts({ row, detail, site }: { row: Row; detail: ModelDetail; site: Sit
           React.ReactNode,
         ][])
       : []),
-    [
-      `Versions merged (${detail.versions.length})`,
-      <Group gap={6} key="v">
-        {detail.versions.map((v) => (
-          <Badge key={v.version} color="gray" title={v.version}>
-            {versionLabel(v.version, detail.versions, row.name)}
-          </Badge>
-        ))}
-      </Group>,
-    ],
   ];
   return (
     <Table variant="vertical" layout="fixed" withTableBorder={false} className={classes.facts}>
@@ -183,7 +232,7 @@ function HistoryNote({ detail }: { detail: ModelDetail }) {
   return (
     <Text size="sm">
       {only
-        ? `One snapshot so far: ${only.eci.toFixed(1)} on ${formatDate(only.fetched_at)}. A chart appears here once the daily refits add more.`
+        ? `One snapshot so far: ${only.eci.toFixed(1)} on ${formatDate(only.fetched_at)}. A chart appears here once the daily runs add more.`
         : "No snapshots yet."}
     </Text>
   );
@@ -420,16 +469,21 @@ function HowComputed({ row, detail, site }: { row: Row; detail: ModelDetail; sit
               <span className={classes.formula}>
                 predicted = logistic(slope × (ECI − difficulty))
               </span>
-              , and the fit picks the numbers that make all predictions match all scores at once.
-              Claude 3.5 Sonnet is pinned at 130 and GPT-5 at 150 to fix the scale; the 90% interval
-              comes from {site.latest.fit.bootstrap_samples} refits on resampled results.
+              . Benchmark difficulty and slope come from a joint fit over every model (each model's
+              variants pooled, best score per benchmark), with Claude 3.5 Sonnet at 130 and GPT-5 at
+              150 fixing the scale. This variant's ECI is then the value that best matches its own
+              results alone. The 90% interval comes from{" "}
+              {(
+                site.latest.fit.bootstrap_samples * site.latest.fit.resamples_per_draw
+              ).toLocaleString("en")}{" "}
+              draws over refitted benchmarks and resampled results.
             </Text>
             <Text className={classes.prose}>
-              This is Epoch AI's method (
+              The method is Epoch AI's (
               <Anchor href={LINKS.epochEci} className={classes.keep}>
-                Epoch's ECI page
+                ECI page
               </Anchor>
-              , <Anchor href={LINKS.paper}>paper</Anchor>), run unchanged from{" "}
+              , <Anchor href={LINKS.paper}>paper</Anchor>); the joint fit runs their open{" "}
               <Anchor href={`${LINKS.eciPublic}/tree/${commit}`} className={classes.keep}>
                 eci-public @ {commit.slice(0, 7)}
               </Anchor>
@@ -538,8 +592,7 @@ function ResultsTable({ results, detail }: { results: BenchmarkResult[]; detail:
       >
         <Table.Thead>
           <Table.Tr>
-            <Table.Th w="28%">Benchmark</Table.Th>
-            <Table.Th w="18%">Version</Table.Th>
+            <Table.Th w="34%">Benchmark</Table.Th>
             <Table.Th ta="right" w={100}>
               Score
             </Table.Th>
@@ -565,9 +618,6 @@ function ResultsTable({ results, detail }: { results: BenchmarkResult[]; detail:
           {results.map((r) => (
             <Table.Tr key={r.id}>
               <Table.Td>{r.benchmark}</Table.Td>
-              <Table.Td c="dimmed" title={r.version}>
-                {versionLabel(r.version, detail.versions, detail.name)}
-              </Table.Td>
               <Table.Td ta="right">
                 <HoverTip label={`Column: ${r.score_column}`}>
                   <span className={classes.hint}>{formatScore(r.score, scale(r))}</span>
@@ -617,10 +667,10 @@ function Results({ detail }: { detail: ModelDetail }) {
   return (
     <Stack gap="xl">
       <Text c="dimmed" className={classes.prose}>
-        Every result Epoch's data has for this model's versions: the raw score as published (hover
-        it for the column it comes from), its standard error where measured, and the 0–100% score
-        the fit sees after rescaling (random guessing = 0%, the benchmark's ceiling = 100%). Empty
-        columns are left out.
+        Every result Epoch AI's data has for this variant: the raw score as published (hover it for
+        the column it comes from), its standard error where measured, and the 0–100% score the fit
+        sees after rescaling (random guessing = 0%, the benchmark's ceiling = 100%). Empty columns
+        are left out.
       </Text>
       <Text size="sm" c="dimmed" hiddenFrom="sm" className="chrome">
         The tables scroll sideways for more columns →
@@ -636,7 +686,7 @@ function Results({ detail }: { detail: ModelDetail }) {
           Not used in ECI ({unusedCount})
         </Title>
         {unused.length === 0 ? (
-          <Text c="dimmed">Every result for this model went into the fit.</Text>
+          <Text c="dimmed">Every result for this variant went into its score.</Text>
         ) : (
           <Accordion multiple variant="default" defaultValue={unused[0] ? [unused[0].reason] : []}>
             {unused.map((g) => (
@@ -661,15 +711,28 @@ function Results({ detail }: { detail: ModelDetail }) {
   );
 }
 
-function Body({ row, slug, site }: { row: Row; slug: string; site: SiteData }) {
+function Body({
+  row,
+  slug,
+  site,
+  variants,
+}: {
+  row: Row;
+  slug: string;
+  site: SiteData;
+  variants: Row[];
+}) {
   const detail = use(detailOf(slug));
   const benchmarks = detail.fit.length;
   return (
     <Stack gap="lg">
       {isThin(benchmarks) && (
         <Alert color="yellow" variant="light" radius="lg" title="Thin evidence">
-          This score rests on only {benchmarks} benchmark{benchmarks === 1 ? "" : "s"}; the index
-          needs at least 4 to score a model at all. Treat it as provisional
+          This score rests on only {benchmarks} benchmark{benchmarks === 1 ? "" : "s"}
+          {benchmarks < site.latest.fit.rank_min_benchmarks
+            ? `, fewer than the ${site.latest.fit.rank_min_benchmarks} needed for a rank`
+            : ""}
+          . Treat it as provisional
           {row.ci_low !== null && row.ci_high !== null
             ? `: its 90% interval spans ${(row.ci_high - row.ci_low).toFixed(1)} points`
             : ""}
@@ -695,6 +758,11 @@ function Body({ row, slug, site }: { row: Row; slug: string; site: SiteData }) {
           </Grid.Col>
         </Grid>
       )}
+      {variants.length > 1 && (
+        <Section title={`Variants of ${row.group} (${variants.length})`}>
+          <Variants row={row} variants={variants} />
+        </Section>
+      )}
       <Section title="How the score came about">
         <HowComputed row={row} detail={detail} site={site} />
       </Section>
@@ -703,24 +771,27 @@ function Body({ row, slug, site }: { row: Row; slug: string; site: SiteData }) {
       </Section>
       <Text c="dimmed" className={classes.prose}>
         Benchmark data by <Anchor href={LINKS.epochData}>Epoch AI</Anchor>, licensed{" "}
-        <Anchor href={LINKS.ccBy}>CC BY 4.0</Anchor>. Scores here come from this site's refit of
-        snapshot {detail.snapshot}, not from Epoch AI.
+        <Anchor href={LINKS.ccBy}>CC BY 4.0</Anchor>. Scores computed by ECI Live from snapshot{" "}
+        {detail.snapshot}.
       </Text>
     </Stack>
   );
 }
 
-/** One model: its facts, its scores, and how its ECI was computed. */
+/** One model variant: its facts, its siblings, its scores, and how its ECI was computed. */
 export function ModelPage({
   row,
   slug,
   site,
+  variants,
   backHref,
   onBack,
 }: {
   row: Row;
   slug: string;
   site: SiteData;
+  /** Every variant of the model, this one included, in default order. */
+  variants: Row[];
   backHref: string;
   onBack: () => void;
 }) {
@@ -760,7 +831,7 @@ export function ModelPage({
           </Group>
         }
       >
-        <Body row={row} slug={slug} site={site} />
+        <Body row={row} slug={slug} site={site} variants={variants} />
       </Suspense>
     </Stack>
   );

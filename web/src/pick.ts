@@ -1,8 +1,8 @@
 import type { Row } from "./data";
 
 /**
- * The chart's rows: the top models plus any the user picked that aren't already among them,
- * in rank order. `added` names the picked rows the chart wouldn't otherwise show.
+ * The chart's rows: the top models plus any variants the user picked that aren't already
+ * among them, best first. `added` names the picked rows the chart wouldn't otherwise show.
  */
 export function withPicked(
   top: Row[],
@@ -13,7 +13,7 @@ export function withPicked(
   const wanted = new Set(picked);
   const extra = all.filter((r) => wanted.has(r.name) && !shown.has(r.name));
   return {
-    rows: [...top, ...extra].sort((a, b) => a.rank - b.rank),
+    rows: [...top, ...extra].sort((a, b) => b.eci - a.eci),
     added: new Set(extra.map((r) => r.name)),
   };
 }

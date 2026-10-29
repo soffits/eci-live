@@ -5,7 +5,14 @@ import { niceTicks } from "../scale";
 import { ChartTooltip } from "./ChartTooltip";
 import { LabLogo, useLabColor } from "./LabLogo";
 import classes from "./Leaderboard.module.css";
-import { AddedMark, MarkDots, MarkDotsKey, NewMark, PreviewMark } from "./ModelBadges";
+import {
+  AddedMark,
+  FallbackMark,
+  MarkDots,
+  MarkDotsKey,
+  NewMark,
+  VariantsMenu,
+} from "./ModelBadges";
 import { ModelLink, useModelNav } from "./ModelLink";
 
 const ROW_HEIGHT = 34;
@@ -25,6 +32,7 @@ const NAME_PX = 7.4;
 /** Rank, logo and gaps before the name. */
 const LABEL_CHROME = 84;
 const BADGE_PX = 96;
+const MENU_PX = 40;
 
 interface TickProps {
   x?: number | string;
@@ -46,33 +54,50 @@ interface AreaProps {
 }
 
 /** Wide enough for the longest name and its marks, so no dead gutter before the plot. */
-function labelWidthFor(rows: Row[], added: Set<string>): number {
+function labelWidthFor(
+  rows: Row[],
+  added: Set<string>,
+  skipped: Map<string, Row[]>,
+  menus: boolean,
+): number {
   const widest = Math.max(
     ...rows.map(
       (r) =>
         r.name.length * NAME_PX +
-        (r.isNew || !r.onEpoch ? BADGE_PX : 0) +
-        (added.has(r.name) ? BADGE_PX : 0),
+        (r.isNew ? BADGE_PX : 0) +
+        (added.has(r.name) ? BADGE_PX : 0) +
+        (skipped.has(r.name) ? BADGE_PX : 0) +
+        (menus ? MENU_PX : 0),
     ),
   );
-  return Math.min(380, Math.max(220, LABEL_CHROME + widest));
+  return Math.min(420, Math.max(220, LABEL_CHROME + widest));
 }
 
 /**
  * Top models as 90% confidence-interval capsules with a dot at the point estimate. Capsules
- * don't imply a zero, so the truncated axis is honest. Models Epoch hasn't published are
- * drawn dashed and hollow. Scores sit in their own column on the right.
+ * don't imply a zero, so the truncated axis is honest. Scores sit in their own column on the
+ * right. Each row can open its model's other variants ("+N") to add them.
  */
 export function Leaderboard({
   rows,
   added = new Set(),
   onRemove,
+  skipped = new Map(),
+  minBenchmarks = 0,
+  othersOf,
+  onAdd,
   axisLabel = "ECI",
 }: {
   rows: Row[];
   /** Models the user added; they get a removable "added" mark. */
   added?: Set<string>;
   onRemove?: (name: string) => void;
+  /** Default variants shown in place of thinner higher-effort ones, with those. */
+  skipped?: Map<string, Row[]>;
+  minBenchmarks?: number;
+  /** A row's other variants, for its "+N" menu. */
+  othersOf?: (row: Row) => Row[];
+  onAdd?: (name: string) => void;
   axisLabel?: string;
 }) {
   const { ref, width } = useElementSize();
@@ -85,7 +110,10 @@ export function Leaderboard({
   const high = Math.max(...rows.map((r) => r.ci_high ?? r.eci));
   const ticks = niceTicks(low, high, stacked ? 3 : 4);
   const domain = [ticks[0] ?? low, ticks.at(-1) ?? high];
-  const labelWidth = stacked ? STACKED_SIDE : labelWidthFor(rows, added);
+  const labelWidth = stacked
+    ? STACKED_SIDE
+    : labelWidthFor(rows, added, skipped, othersOf !== undefined);
+  const shown = new Set(rows.map((r) => r.name));
   const tied = rows.filter((r) => r.tiedFirst);
   const bottomAxis = rows.length > BOTTOM_AXIS_ROWS;
   const valueX = width - (stacked ? STACKED_SIDE : 8);
@@ -108,7 +136,11 @@ export function Leaderboard({
           <span
             className={classes.rank}
             data-tied={row.tiedFirst || undefined}
-            title={`Rank ${row.tiedFirst ? "=1" : row.rank} among all models`}
+            title={
+              row.rank === null
+                ? "Not ranked"
+                : `Rank ${row.tiedFirst ? "=1" : row.rank} among all variants`
+            }
           >
             {row.tiedFirst ? "=1" : placeOf(row)}
           </span>
@@ -117,13 +149,12 @@ export function Leaderboard({
           {added.has(row.name) && onRemove && (
             <AddedMark name={row.name} onRemove={() => onRemove(row.name)} />
           )}
-          {stacked ? (
-            <MarkDots row={row} />
-          ) : (
-            <>
-              {row.isNew && row.onEpoch && <NewMark />}
-              {!row.onEpoch && <PreviewMark row={row} compact />}
-            </>
+          {stacked ? <MarkDots row={row} /> : row.isNew && <NewMark />}
+          {skipped.has(row.name) && (
+            <FallbackMark skipped={skipped.get(row.name) ?? []} min={minBenchmarks} />
+          )}
+          {othersOf && onAdd && (
+            <VariantsMenu row={row} others={othersOf(row)} shown={shown} onAdd={onAdd} />
           )}
           {stacked && <span className={classes.stackedValue}>{row.eci.toFixed(1)}</span>}
         </div>
@@ -138,7 +169,6 @@ export function Leaderboard({
     const span = (payload.ci_high ?? payload.eci) - lowCi;
     const cx = span > 0 ? x + (w * (payload.eci - lowCi)) / span : x;
     const cy = stacked ? y + STACKED_CAPSULE_Y : y + height / 2;
-    const preview = !payload.onEpoch;
     return (
       <g>
         {span > 0 && (
@@ -149,10 +179,9 @@ export function Leaderboard({
             height={14}
             rx={7}
             fill={color}
-            style={{ fillOpacity: preview ? 0.1 : "var(--eci-capsule-opacity)" }}
+            style={{ fillOpacity: "var(--eci-capsule-opacity)" }}
             stroke={color}
-            strokeOpacity={preview ? 1 : 0.85}
-            strokeDasharray={preview ? "4 3" : undefined}
+            strokeOpacity={0.85}
             strokeWidth={1.5}
           />
         )}
@@ -160,9 +189,9 @@ export function Leaderboard({
           cx={cx}
           cy={cy}
           r={6.5}
-          fill={preview ? "var(--eci-hero-surface)" : color}
-          stroke={preview ? color : "var(--eci-dot-ring)"}
-          strokeWidth={preview ? 3 : 2.5}
+          fill={color}
+          stroke="var(--eci-dot-ring)"
+          strokeWidth={2.5}
         />
         {!stacked && (
           <text
@@ -296,7 +325,7 @@ export function LeaderboardKey({
   intervals?: boolean;
   /** Whether any row is tied for #1 (only the general index has rank intervals). */
   tie?: boolean;
-  /** Phones mark new and unpublished models with dots; explain them. */
+  /** Phones mark new models with dots; explain them. */
   dots?: boolean;
 }) {
   return (
@@ -308,17 +337,7 @@ export function LeaderboardKey({
         </svg>
         {intervals ? "estimate and 90% CI" : "point estimate (no interval for custom sets)"}
       </span>
-      {dots ? (
-        <MarkDotsKey />
-      ) : (
-        <span>
-          <svg width="34" height="14" aria-hidden>
-            <rect x="1" y="3" width="32" height="8" rx="4" className={classes.keyPreview} />
-            <circle cx="15" cy="7" r="4" className={classes.keyHollow} />
-          </svg>
-          not on Epoch yet
-        </span>
-      )}
+      {dots && <MarkDotsKey />}
       {tie && (
         <span>
           <span className={classes.keyTie}>=1</span>

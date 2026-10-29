@@ -4,9 +4,9 @@ import { DataTable, type DataTableSortStatus } from "mantine-datatable";
 import { useMemo, useState } from "react";
 import { TABLE_PAGE_SIZE, WEIGHTS } from "../config";
 import type { Row } from "../data";
-import { formatDate, formatRange, noInterval } from "../format";
+import { formatDate, formatRange } from "../format";
 import { LabLogo, useLabColor } from "./LabLogo";
-import { MarkDots, MarkDotsKey, NewMark, PreviewMark } from "./ModelBadges";
+import { MarkDots, MarkDotsKey, NewMark, ThinMark } from "./ModelBadges";
 import { ModelLink } from "./ModelLink";
 import classes from "./ModelTable.module.css";
 
@@ -71,15 +71,17 @@ function SortIcon({ path }: { path: string }) {
   );
 }
 
-/** Every scored model: searchable, sortable, paginated. */
+/** Every scored variant, thin ones included but unranked: searchable, sortable, paginated. */
 export function ModelTable({
   rows,
   hasPrevious,
   intervals = true,
+  minBenchmarks,
 }: {
   rows: Row[];
   hasPrevious: boolean;
   intervals?: boolean;
+  minBenchmarks: number;
 }) {
   const narrow = useMediaQuery("(max-width: 48em)") ?? false;
   const [query, setQuery] = useState("");
@@ -92,7 +94,9 @@ export function ModelTable({
   const sorted = useMemo(() => {
     const q = query.trim().toLowerCase();
     const found = q
-      ? rows.filter((r) => r.name.toLowerCase().includes(q) || r.lab.toLowerCase().includes(q))
+      ? rows.filter((r) =>
+          [r.name, r.group, r.lab, r.version].some((t) => t.toLowerCase().includes(q)),
+        )
       : rows;
     const sign = sort.direction === "asc" ? 1 : -1;
     return [...found].sort((a, b) => sign * compare(a, b, sort.columnAccessor as SortKey));
@@ -130,13 +134,13 @@ export function ModelTable({
         }
         size={narrow ? "md" : "sm"}
         maw={narrow ? undefined : 420}
-        placeholder="Search models or labs"
+        placeholder="Search models, variants or labs"
         value={query}
         onChange={(e) => {
           setQuery(e.currentTarget.value);
           setPage(1);
         }}
-        aria-label="Search models or labs"
+        aria-label="Search models, variants or labs"
       />
       {narrow && (
         <div className={`${classes.key} chrome`}>
@@ -166,9 +170,9 @@ export function ModelTable({
         recordsPerPage={TABLE_PAGE_SIZE}
         page={current}
         onPageChange={setPage}
-        paginationText={({ from, to, totalRecords }) => `${from}–${to} of ${totalRecords} models`}
+        paginationText={({ from, to, totalRecords }) => `${from}–${to} of ${totalRecords} variants`}
         paginationSize="sm"
-        noRecordsText="No models match"
+        noRecordsText="No variants match"
         minHeight={sorted.length ? undefined : 160}
         columns={[
           {
@@ -180,20 +184,22 @@ export function ModelTable({
             render: (r) => (
               <Tooltip
                 label={
-                  r.rank_low === null || r.rank_high === null
-                    ? "No rank interval"
-                    : `90% rank interval ${formatRange(r.rank_low, r.rank_high)}`
+                  r.rank === null
+                    ? `Fewer than ${minBenchmarks} benchmarks: not ranked`
+                    : r.rank_low === null || r.rank_high === null
+                      ? "No rank interval"
+                      : `90% rank interval ${formatRange(r.rank_low, r.rank_high)}`
                 }
               >
                 <Text size="sm" fw={700} className="num" c={r.tiedFirst ? "violet" : undefined}>
-                  {r.tiedFirst ? "=1" : r.rank}
+                  {r.rank === null ? "–" : r.tiedFirst ? "=1" : r.rank}
                 </Text>
               </Tooltip>
             ),
           },
           {
             accessor: "name",
-            title: "Model",
+            title: "Model variant",
             sortable: true,
             noWrap: !narrow,
             render: (r) => (
@@ -202,14 +208,8 @@ export function ModelTable({
                 <Text size="sm" fw={600} className={narrow ? undefined : classes.name}>
                   <ModelLink name={r.name} />
                 </Text>
-                {narrow ? (
-                  <MarkDots row={r} />
-                ) : (
-                  <>
-                    {r.isNew && <NewMark />}
-                    {!r.onEpoch && <PreviewMark row={r} compact />}
-                  </>
-                )}
+                {narrow ? <MarkDots row={r} /> : r.isNew && <NewMark />}
+                {r.rank === null && <ThinMark row={r} min={minBenchmarks} />}
               </Group>
             ),
           },
@@ -250,7 +250,7 @@ export function ModelTable({
                 <CiCapsule row={r} scale={scale} />
                 <Text size="sm" c="dimmed" className="num">
                   {r.ci_low === null || r.ci_high === null
-                    ? noInterval(r)
+                    ? "point estimate"
                     : `${r.ci_low.toFixed(1)}–${r.ci_high.toFixed(1)}`}
                 </Text>
               </Group>
@@ -271,7 +271,7 @@ export function ModelTable({
             sortable: true,
             textAlign: "right",
             noWrap: true,
-            visibleMediaQuery: "(min-width: 62em)",
+            visibleMediaQuery: "(min-width: 48em)",
             render: (r) => <span className="num">{r.benchmarks}</span>,
           },
           {

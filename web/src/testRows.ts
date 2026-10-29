@@ -1,15 +1,21 @@
 import type { Row } from "./data.ts";
 
-/** A minimal scored model for tests. */
+/** A minimal scored variant for tests; its own model group unless `extra` says otherwise. */
 export function row(
   name: string,
   lab: string,
   released: string | null,
   eci: number,
-  rank = 0,
+  rank: number | null = 0,
+  extra: Partial<Row> = {},
 ): Row {
   return {
+    version: name,
     name,
+    group: name,
+    effort: null,
+    effort_rank: 1,
+    pro: false,
     lab,
     release_date: released,
     eci,
@@ -21,15 +27,16 @@ export function row(
     p_first: null,
     weights: "closed",
     accessibility: null,
-    official_eci: eci,
+    missing_areas: [],
     general_eci: eci,
     country: null,
     training_compute_flop: null,
     rank,
+    gaps: rank === null ? ["too few"] : [],
     released: released === null ? null : Date.parse(released),
     isNew: false,
-    onEpoch: true,
     tiedFirst: false,
     delta: null,
+    ...extra,
   };
 }

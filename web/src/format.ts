@@ -10,13 +10,9 @@ export function formatDate(time: number | string | null): string {
   });
 }
 
-/** Why a row has no interval: a scale anchor of the general index, or a custom point estimate. */
-export function noInterval(row: Row): string {
-  return row.eci === row.general_eci ? "scale anchor (fixed)" : "point estimate";
-}
-
+/** The interval, or why there is none: custom selections are point estimates. */
 export function formatCi(row: Row): string {
-  if (row.ci_low === null || row.ci_high === null) return noInterval(row);
+  if (row.ci_low === null || row.ci_high === null) return "point estimate";
   return `90% CI ${row.ci_low.toFixed(1)}–${row.ci_high.toFixed(1)}`;
 }
 

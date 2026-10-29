@@ -97,18 +97,6 @@
   fill: var(--mantine-color-text);
 }
 
-.keyPreview {
-  fill: none;
-  stroke: var(--mantine-color-dimmed);
-  stroke-dasharray: 4 3;
-}
-
-.keyHollow {
-  fill: var(--mantine-color-body);
-  stroke: var(--mantine-color-text);
-  stroke-width: 2;
-}
-
 .keyTie {
   padding: 0 8px 0 10px;
   border-radius: 4px;

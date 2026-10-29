@@ -1,6 +1,6 @@
 import type { BenchmarkResult, FitTerm } from "./data";
 
-/** At most this many benchmarks in the fit counts as thin evidence (the index needs 4). */
+/** At most this many benchmarks behind a score counts as thin evidence. */
 export const THIN_EVIDENCE_BENCHMARKS = 5;
 
 export function logistic(x: number): number {
@@ -54,7 +54,7 @@ export function splitResults(results: BenchmarkResult[]): {
   unused: { reason: string; results: BenchmarkResult[] }[];
 } {
   const byName = (a: BenchmarkResult, b: BenchmarkResult) =>
-    a.benchmark.localeCompare(b.benchmark) || a.version.localeCompare(b.version);
+    a.benchmark.localeCompare(b.benchmark) || b.score - a.score;
   const groups = new Map<string, BenchmarkResult[]>();
   for (const r of results) {
     if (r.used) continue;
@@ -86,28 +86,18 @@ export function pullPoints(actual: number, predicted: number): number {
 // The pipeline's fixed reasons (src/eci_live/detail.py), as titles for a group of results.
 const GROUP_TITLES: Record<string, string> = {
   "This benchmark isn't part of the index.": "Benchmarks outside the index",
-  "Another version of this model scored higher here; the fit keeps the best score.":
-    "Lower scores of another version (the fit keeps each benchmark's best)",
-  "Another version of this model has the same score; it is counted once.":
-    "Same score as another version (counted once)",
+  "Another result of this variant scored higher here; the score keeps the best one.":
+    "Lower repeat results (each benchmark's best counts)",
+  "Another result of this variant has the same score; it is counted once.":
+    "Repeat results with the same score (counted once)",
   "Not in the fit's input.": "Not in the fit's input",
+  "No model the index fits has this benchmark, so it has no difficulty or slope yet.":
+    "Benchmarks without fitted parameters yet",
 };
 
 /** A title for a group of unused results; "Replaced in the fit by …" stays as written. */
 export function groupTitle(reason: string): string {
   return GROUP_TITLES[reason] ?? reason.replace(/\.$/, "");
-}
-
-/** A version's readable setting, e.g. "unknown thinking" for "GPT-6 Astra (unknown thinking)". */
-export function versionLabel(
-  version: string,
-  versions: { version: string; display_name: string | null }[],
-  model: string,
-): string {
-  const display = versions.find((v) => v.version === version)?.display_name;
-  if (!display) return version;
-  const setting = display.startsWith(model) ? display.slice(model.length).trim() : display;
-  return setting.replace(/^\((.*)\)$/, "$1") || display;
 }
 
 /** A raw score with precision fitted to its scale, so a column's decimals line up. */

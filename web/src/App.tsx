@@ -49,7 +49,8 @@ import { applyFilters, type Filters, monthBounds } from "./filters";
 import { formatDate } from "./format";
 import { currentGeneration, LINES_PER_LAB } from "./generations";
 import { withPicked } from "./pick";
-import { applyPreset, DEFAULT_MIN_BENCHMARKS, PRESET_IDS, type Selection } from "./presets";
+import { applyPreset, defaultMinBenchmarks, PRESET_IDS, type Selection } from "./presets";
+import { defaultVariants, preferred, siblings } from "./variants";
 
 type TopView = "current" | "all";
 
@@ -70,7 +71,8 @@ const VIEWS: { value: View; label: string; short: string }[] = [
 const viewParams = {
   preset: parseAsStringLiteral(PRESET_IDS).withDefault("general"),
   bench: parseAsNativeArrayOf(parseAsString),
-  min: parseAsInteger.withDefault(DEFAULT_MIN_BENCHMARKS),
+  // Unset means the selection's default (presets.defaultMinBenchmarks).
+  min: parseAsInteger,
   view: parseAsStringLiteral(VIEWS.map((v) => v.value)).withDefault("time"),
   color: parseAsStringLiteral(COLOR_BY.map((c) => c.value)).withDefault("lab"),
   frontier: parseAsBoolean.withDefault(false),
@@ -156,19 +158,24 @@ export function App({
   const fit = use(fitData);
   const general = useMemo(() => toRows(site, NEW_WITHIN_DAYS, fit), [site, fit]);
   const [params, setParams] = useQueryStates(viewParams);
+  const minBenchmarks = params.min ?? defaultMinBenchmarks(params.preset);
   const selection: Selection = useMemo(
-    () => ({ preset: params.preset, custom: params.bench, minBenchmarks: params.min }),
-    [params.preset, params.bench, params.min],
+    () => ({ preset: params.preset, custom: params.bench, minBenchmarks }),
+    [params.preset, params.bench, minBenchmarks],
   );
   const preset = useMemo(
-    () => applyPreset(general, site, fit, selection, NEW_WITHIN_DAYS),
+    () => applyPreset(general, site, fit, selection),
     [general, site, fit, selection],
   );
   // Domain vs general needs a domain; with General selected it shows Software engineering.
   const domainPreset = useMemo(
     () =>
       selection.preset === "general"
-        ? applyPreset(general, site, fit, { ...selection, preset: "software" }, NEW_WITHIN_DAYS)
+        ? applyPreset(general, site, fit, {
+            ...selection,
+            preset: "software",
+            minBenchmarks: defaultMinBenchmarks("software"),
+          })
         : preset,
     [general, site, fit, preset, selection],
   );
@@ -182,19 +189,33 @@ export function App({
   const labs = labCounts.map(([lab]) => lab);
   const [filters, setFilters] = useState<Filters>({ weights: "all", labs: [], months: bounds });
   const rows = useMemo(() => applyFilters(all, filters, bounds), [all, filters, bounds]);
+  const ranked = useMemo(() => all.filter((r) => r.rank !== null), [all]);
+  // One variant per model: its highest reasoning effort with enough evidence (variants.ts).
+  const defaults = useMemo(() => defaultVariants(rows), [rows]);
   const [topView, setTopView] = useState<TopView>("current");
-  const current = useMemo(() => currentGeneration(rows), [rows]);
-  // Models the user added to the chart, kept in the URL (?model=A&model=B) for sharing.
-  const [picked, setPicked] = useQueryState("model", parseAsNativeArrayOf(parseAsString));
+  const current = useMemo(() => currentGeneration(defaults.rows), [defaults]);
+  // Variants the user added to the chart, kept in the URL (?model=<version>) for sharing.
+  const [pickedVersions, setPickedVersions] = useQueryState(
+    "model",
+    parseAsNativeArrayOf(parseAsString),
+  );
+  const nameOfVersion = useMemo(() => new Map(general.map((r) => [r.version, r.name])), [general]);
+  const versionOfName = useMemo(() => new Map(general.map((r) => [r.name, r.version])), [general]);
+  const picked = pickedVersions.flatMap((v) => nameOfVersion.get(v) ?? []);
+  const setPicked = (names: string[]) =>
+    void setPickedVersions(names.flatMap((n) => versionOfName.get(n) ?? []));
   const known = new Set(all.map((r) => r.name));
   const narrow = useMediaQuery("(max-width: 48em)") ?? false;
   const labColor = useLabColor();
   const colorBy: ColorBy = params.color;
   const colorOf = (r: Row) => (colorBy === "lab" ? labColor(r.lab) : groupColor(r, colorBy));
-  const viewRows =
-    params.view === "domain" ? applyFilters(domainPreset.rows, filters, bounds) : rows;
-  const curves = params.curve.length > 0 ? params.curve : fit ? defaultBenchmarks(fit) : [];
   const pickedKnown = picked.filter((name) => known.has(name));
+  // The explore views draw what the leaderboard does: each model's default variant, plus
+  // any the user added.
+  const viewSource =
+    params.view === "domain" ? applyFilters(domainPreset.rows, filters, bounds) : rows;
+  const viewRows = withPicked(defaultVariants(viewSource).rows, viewSource, pickedKnown).rows;
+  const curves = params.curve.length > 0 ? params.curve : fit ? defaultBenchmarks(fit) : [];
   // A legend chip may stand for several labs: all on, or all off when they already are.
   const toggleLabs = (group: string[]) =>
     setFilters((f) => {
@@ -204,18 +225,20 @@ export function App({
     });
 
   const [slug, setSlug] = useQueryState("m", detailParam);
-  const nameOf = useMemo(
-    () => new Map(Object.entries(site.slugs).map(([name, s]) => [s, name])),
+  const versionOfSlug = useMemo(
+    () => new Map(Object.entries(site.slugs).map(([version, s]) => [s, version])),
     [site.slugs],
   );
-  const detailRow = slug === null ? undefined : general.find((r) => r.name === nameOf.get(slug));
+  const detailRow =
+    slug === null ? undefined : general.find((r) => r.version === versionOfSlug.get(slug));
+  const slugOf = (name: string) => site.slugs[versionOfName.get(name) ?? ""];
   const nav: ModelNav = {
     hrefOf: (name) => {
-      const target = site.slugs[name];
+      const target = slugOf(name);
       return target ? detailUrl(window.location.search, { m: target }) : null;
     },
     open: (name) => {
-      const target = site.slugs[name];
+      const target = slugOf(name);
       if (target) void setSlug(target);
     },
   };
@@ -225,10 +248,11 @@ export function App({
   // Δ only earns its column when some score moved since the previous snapshot.
   const hasPrevious =
     isGeneral && general.some((r) => r.delta !== null && Math.abs(r.delta) >= 0.05);
-  const top = (topView === "current" ? current : rows).slice(0, TOP_N);
-  const hidden = rows.length - current.length;
+  const top = (topView === "current" ? current : defaults.rows).slice(0, TOP_N);
+  const hidden = defaults.rows.length - current.length;
   const chart = withPicked(top, all, pickedKnown);
   const unpick = (name: string) => setPicked(pickedKnown.filter((n) => n !== name));
+  const pick = (name: string) => setPicked([...pickedKnown, name]);
 
   return (
     <ModelNavContext value={nav}>
@@ -258,6 +282,7 @@ export function App({
             row={detailRow}
             slug={slug}
             site={site}
+            variants={general.filter((r) => r.group === detailRow.group).sort(preferred)}
             backHref={detailUrl(window.location.search, { m: null }) || window.location.pathname}
             onBack={() => void setSlug(null)}
           />
@@ -282,7 +307,8 @@ export function App({
                 value={selection}
                 onChange={(next) =>
                   void setParams({
-                    ...(next.preset !== undefined && { preset: next.preset }),
+                    // A new selection starts from its own default minimum.
+                    ...(next.preset !== undefined && { preset: next.preset, min: null }),
                     ...(next.custom !== undefined && { bench: next.custom }),
                     ...(next.minBenchmarks !== undefined && { min: next.minBenchmarks }),
                   })
@@ -318,10 +344,10 @@ export function App({
                   </Group>
                   <Text size="sm" c="dimmed" mb="sm" className={classes.caption}>
                     {topView === "current"
-                      ? `The newest version of each lab's ${LINES_PER_LAB} most recent model lines (${hidden} older models hidden). Hover a number for its rank among every model.`
-                      : "Every model, including ones their lab has since matched or beaten."}
-                    {preset.epochs &&
-                      " These are Epoch AI's published Cyber ECI scores, not this refit's."}
+                      ? `The newest version of each lab's ${LINES_PER_LAB} most recent model lines (${hidden} older models hidden).`
+                      : "Every model, including ones their lab has since matched or beaten."}{" "}
+                    Each model shows its highest reasoning setting; add other variants with + or the
+                    search below.
                   </Text>
                   <Box mb="sm">
                     <ModelPicker models={all} value={pickedKnown} onChange={setPicked} />
@@ -334,6 +360,10 @@ export function App({
                       rows={chart.rows}
                       added={chart.added}
                       onRemove={unpick}
+                      skipped={defaults.skipped}
+                      minBenchmarks={minBenchmarks}
+                      othersOf={(r) => siblings(r, all)}
+                      onAdd={pick}
                       axisLabel={isGeneral ? "ECI" : preset.label}
                     />
                   ) : (
@@ -343,7 +373,7 @@ export function App({
                   )}
                 </Grid.Col>
                 <Grid.Col span={{ base: 12, lg: 4 }} className={classes.insightCol}>
-                  <Insights rows={all} general={general} snapshot={latest} isGeneral={isGeneral} />
+                  <Insights rows={ranked} isGeneral={isGeneral} />
                 </Grid.Col>
               </Grid>
             </section>
@@ -435,7 +465,12 @@ export function App({
                     : `Search, sort and page through every model${isGeneral ? "" : ` scored on ${preset.label}`}.`
                 }
               />
-              <ModelTable rows={rows} hasPrevious={hasPrevious} intervals={preset.intervals} />
+              <ModelTable
+                rows={rows}
+                hasPrevious={hasPrevious}
+                intervals={preset.intervals}
+                minBenchmarks={minBenchmarks}
+              />
             </section>
 
             <Divider my={56} />

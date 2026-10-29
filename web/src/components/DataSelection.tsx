@@ -11,7 +11,6 @@ import {
 } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
 import type { FitData, SiteData } from "../data";
-import { formatDate } from "../format";
 import {
   MIN_BENCHMARKS,
   type PresetId,
@@ -43,47 +42,39 @@ function Note({
   selection: Selection;
 }) {
   const { preset, minBenchmarks } = selection;
+  const samples = site.latest.fit.bootstrap_samples * site.latest.fit.resamples_per_draw;
   if (preset === "general") {
     return (
-      <>Every benchmark in the index. Pick a domain to see how models do on its benchmarks alone.</>
-    );
-  }
-  if (preset === "cyber") {
-    const cyber = site.latest.cyber;
-    return (
       <>
-        Epoch AI's own published Cyber ECI, shown as Epoch's numbers: a separate joint fit with{" "}
-        {view.benchmarks.length} cyber benchmarks that Epoch updates less often than the general
-        index, so it isn't refit here. Source:{" "}
-        <Anchor href={cyber?.scores.url}>Epoch's eci_scores.csv</Anchor>, fetched{" "}
-        {cyber ? formatDate(cyber.scores.fetched_at) : "—"}. Models with {minBenchmarks}+ of them.
+        Every benchmark in the index. Variants with {minBenchmarks}+ benchmarks are ranked; thinner
+        ones are listed in the full table. Pick a domain to see how variants do on its benchmarks
+        alone.
       </>
     );
   }
   const list = view.benchmarks.join(", ");
   if (preset === "custom") {
     return view.benchmarks.length === 0 ? (
-      <>Pick benchmarks above. Scores are refit in your browser.</>
+      <>Pick benchmarks above. Scores are computed in your browser.</>
     ) : (
       <>
-        Models with {minBenchmarks}+ of: {list}. Refit in your browser with the domain method below,
-        as point estimates (no intervals).
+        Variants with {minBenchmarks}+ of: {list}. Scored in your browser with the same method as
+        the domains, as point estimates (no intervals).
       </>
     );
   }
   const domains = site.latest.domains;
   return (
     <>
-      Models with {minBenchmarks}+ of these {view.benchmarks.length} benchmarks, tagged by{" "}
-      <Anchor href={domains?.hub_page}>Epoch's benchmark hub</Anchor>: {list}. Epoch's domain
-      method: benchmark difficulty and slope stay at the general fit's and only each model's score
-      is refit, so values sit on the general scale. 90% intervals from{" "}
-      {site.latest.fit.bootstrap_samples * (domains?.resamples_per_draw ?? 10)} resamples.
+      Variants with {minBenchmarks}+ of these {view.benchmarks.length} benchmarks, tagged by{" "}
+      <Anchor href={domains?.hub_page}>Epoch AI's benchmark hub</Anchor>: {list}. Benchmark
+      difficulty and slope stay at the general index's and only each variant's score is fitted, so
+      values sit on the general scale. 90% intervals from {samples.toLocaleString("en")} samples.
     </>
   );
 }
 
-/** Which scores the page shows: General, a domain, Epoch's Cyber ECI or a custom set. */
+/** Which scores the page shows: General, a domain or a custom set. */
 export function DataSelection({
   site,
   fit,
@@ -129,20 +120,18 @@ export function DataSelection({
             </div>
           </Input.Wrapper>
         )}
-        {value.preset !== "general" && (
-          <Input.Wrapper label="Min. benchmarks" className={narrow ? classes.full : undefined}>
-            <div>
-              <SegmentedControl
-                value={String(value.minBenchmarks)}
-                onChange={(v) => onChange({ minBenchmarks: Number(v) })}
-                data={MIN_BENCHMARKS.map(String)}
-                fullWidth={narrow}
-                size={narrow ? "md" : "sm"}
-                aria-label="Minimum number of the selected benchmarks a model needs"
-              />
-            </div>
-          </Input.Wrapper>
-        )}
+        <Input.Wrapper label="Min. benchmarks" className={narrow ? classes.full : undefined}>
+          <div>
+            <SegmentedControl
+              value={String(value.minBenchmarks)}
+              onChange={(v) => onChange({ minBenchmarks: Number(v) })}
+              data={MIN_BENCHMARKS.map(String)}
+              fullWidth={narrow}
+              size={narrow ? "md" : "sm"}
+              aria-label="Minimum number of the selected benchmarks a variant needs to be ranked"
+            />
+          </div>
+        </Input.Wrapper>
       </Group>
       {value.preset === "custom" && fit && (
         <MultiSelect
