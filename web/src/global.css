@@ -1,0 +1,21 @@
+@layer mantine, mantine-datatable;
+
+:root[data-mantine-color-scheme="light"] {
+  color-scheme: light;
+  --mantine-color-body: #f7f7f8;
+}
+
+:root[data-mantine-color-scheme="dark"] {
+  color-scheme: dark;
+  --mantine-color-body: #0d0e11;
+}
+
+body {
+  font-feature-settings: "ss01", "cv11";
+  -webkit-font-smoothing: antialiased;
+}
+
+.recharts-surface:focus,
+.recharts-wrapper:focus {
+  outline: none;
+}

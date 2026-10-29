@@ -1,0 +1,26 @@
+.tick {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  height: 100%;
+}
+
+.tick > :first-child:not(.name) {
+  flex: none;
+}
+
+.name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--mantine-font-size-sm);
+  font-weight: 600;
+}
+
+@media (max-width: 36em) {
+  .name {
+    font-size: var(--mantine-font-size-xs);
+  }
+}

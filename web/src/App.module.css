@@ -1,0 +1,80 @@
+.page {
+  position: relative;
+}
+
+.glow {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 640px;
+  pointer-events: none;
+  background:
+    radial-gradient(40rem 22rem at 12% 0%, rgb(217 119 87 / 22%), transparent 70%),
+    radial-gradient(36rem 20rem at 55% 0%, rgb(66 133 244 / 18%), transparent 70%),
+    radial-gradient(34rem 22rem at 92% 6%, rgb(16 163 127 / 18%), transparent 70%);
+  mask-image: linear-gradient(to bottom, black 40%, transparent);
+}
+
+.headline {
+  font-size: clamp(2.1rem, 5.5vw, 3.75rem);
+  font-weight: 850;
+  line-height: 1.04;
+  letter-spacing: -0.035em;
+}
+
+.gradientText {
+  background: linear-gradient(90deg, #d97757, #ec4899 45%, #6366f1);
+  background-clip: text;
+  color: transparent;
+}
+
+.card {
+  background: light-dark(rgb(255 255 255 / 80%), rgb(26 27 30 / 72%));
+  backdrop-filter: blur(12px);
+}
+
+.sticky {
+  position: sticky;
+  top: 8px;
+  z-index: 10;
+}
+
+.statValue {
+  font-variant-numeric: tabular-nums;
+}
+
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 22px;
+}
+
+.pulse {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 0 0 rgb(16 185 129 / 60%);
+  animation: pulse 2.4s infinite;
+}
+
+@keyframes pulse {
+  70% {
+    box-shadow: 0 0 0 10px rgb(16 185 129 / 0%);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgb(16 185 129 / 0%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse {
+    animation: none;
+  }
+}
+
+@media (max-width: 48em) {
+  .sticky {
+    position: static;
+  }
+}
