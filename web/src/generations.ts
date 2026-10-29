@@ -21,18 +21,19 @@ export function lineOf(name: string): string {
 
 /**
  * A model is superseded when the same lab has released a newer model in the same line, so each
- * line shows only its latest version. Models without a release date or a known lab never are.
+ * line shows only its latest version. Lines come from the model group's name, so all
+ * variants of a model share one. Models without a release date or a known lab never are.
  */
 export function isSuperseded(row: Row, rows: Row[]): boolean {
   const released = row.released;
   if (released === null || row.lab === NO_LAB) return false;
-  const line = lineOf(row.name);
+  const line = lineOf(row.group);
   return rows.some(
     (other) =>
       other.lab === row.lab &&
       other.released !== null &&
       other.released > released &&
-      lineOf(other.name) === line,
+      lineOf(other.group) === line,
   );
 }
 
@@ -50,7 +51,7 @@ export function currentGeneration(rows: Row[], linesPerLab = LINES_PER_LAB): Row
   for (const r of kept) {
     if (r.released === null || r.lab === NO_LAB) continue;
     const lines = lastRelease.get(r.lab) ?? new Map<string, number>();
-    const line = lineOf(r.name);
+    const line = lineOf(r.group);
     lines.set(line, Math.max(lines.get(line) ?? r.released, r.released));
     lastRelease.set(r.lab, lines);
   }
@@ -61,6 +62,6 @@ export function currentGeneration(rows: Row[], linesPerLab = LINES_PER_LAB): Row
   }
   return kept.filter(
     (r) =>
-      r.released === null || r.lab === NO_LAB || (recent.get(r.lab)?.has(lineOf(r.name)) ?? true),
+      r.released === null || r.lab === NO_LAB || (recent.get(r.lab)?.has(lineOf(r.group)) ?? true),
   );
 }

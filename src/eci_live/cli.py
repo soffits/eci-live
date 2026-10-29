@@ -8,7 +8,6 @@ from urllib.error import URLError
 from eci import download_benchmark_data, load_benchmark_metadata
 
 from eci_live import (
-    cyber,
     detail,
     domain,
     fitdata,
@@ -18,15 +17,24 @@ from eci_live import (
     refit,
     settings,
     source,
+    variants,
 )
-from eci_live.drift import DriftError, check_drift
-from eci_live.schema import Cyber, Domains, FitInfo, InputInfo, Preset, Snapshot
+from eci_live.schema import (
+    CoreArea,
+    DomainBenchmark,
+    Domains,
+    FitInfo,
+    InputInfo,
+    Preset,
+    Snapshot,
+)
 
 
 def _parse_args(argv: list[str] | None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="eci-live",
-        description="Refit ECI from Epoch's benchmark zip, record a snapshot, write the site JSON.",
+        description="Score every model variant from Epoch AI's benchmark zip, record a snapshot, "
+        "write the site JSON.",
     )
     parser.add_argument(
         "--history",
@@ -63,17 +71,28 @@ def _warn(title: str, error: Exception) -> None:
     print(f"::warning title={title}::{error}", file=sys.stderr)
 
 
-def _domains(result: refit.Fit, zip_path: Path, snap_id: str, work_dir: Path) -> Domains | None:
-    """Software engineering and Math ECIs from the hub's domain tags; None (with a warning)
-    if the hub can't be read, so the general index still publishes."""
+def _hub(
+    result: refit.Fit, zip_path: Path, snap_id: str, work_dir: Path
+) -> tuple[InputInfo, list[DomainBenchmark]] | None:
+    """The hub's domain tags for the index benchmarks; None (with a warning) if the hub
+    can't be read, so the index still publishes (without domains or coverage)."""
     try:
         module, entries = hub.fetch(settings.HUB_PAGE_URL, work_dir / settings.HUB_ASSET)
     except (hub.HubError, URLError, OSError) as error:
-        _warn("Domain tags unavailable; publishing without domain ECIs", error)
+        _warn("Domain tags unavailable; publishing without domain ECIs or coverage", error)
         return None
     module["archive_url"] = provenance.archive_url(snap_id, settings.HUB_ASSET)
     metadata = load_benchmark_metadata(download_benchmark_data(zip_path))
-    tagged = hub.match(entries, list(result.edi["benchmark"]), metadata)
+    return module, hub.match(entries, list(result.edi["benchmark"]), metadata)
+
+
+def _domains(
+    result: refit.Fit,
+    found: variants.Variants,
+    module: InputInfo,
+    tagged: list[DomainBenchmark],
+) -> Domains:
+    """Software engineering and Math ECIs per variant from the hub's domain tags."""
     presets = []
     for i, (preset_id, label, tag) in enumerate(settings.DOMAIN_PRESETS):
         chosen = hub.in_domain(tagged, tag)
@@ -84,45 +103,28 @@ def _domains(result: refit.Fit, zip_path: Path, snap_id: str, work_dir: Path) ->
                 domain=tag,
                 benchmarks=chosen,
                 scores=domain.scores(
-                    result, chosen, domain.domain_seed(i), settings.DOMAIN_RESAMPLES
+                    result, found.best, chosen, domain.seed_for(i + 1), settings.RESAMPLES_PER_DRAW
                 ),
             )
         )
     return Domains(
         hub_page=settings.HUB_PAGE_URL,
         hub_module=module,
-        resamples_per_draw=settings.DOMAIN_RESAMPLES,
+        resamples_per_draw=settings.RESAMPLES_PER_DRAW,
         seed=settings.BOOTSTRAP_SEED,
         benchmarks=tagged,
         presets=presets,
     )
 
 
-def _cyber(snap_id: str, work_dir: Path) -> Cyber | None:
-    try:
-        published = cyber.fetch(work_dir)
-    except (URLError, OSError, KeyError, ValueError) as error:
-        _warn("Epoch's Cyber ECI unavailable; publishing without it", error)
-        return None
-    published["scores"]["archive_url"] = provenance.archive_url(
-        snap_id, settings.CYBER_SCORES_ASSET
-    )
-    published["results"]["archive_url"] = provenance.archive_url(
-        snap_id, settings.CYBER_RESULTS_ASSET
-    )
-    return published
-
-
 def _new_snapshot(
     zip_path: Path, info: InputInfo, bootstrap_samples: int, work_dir: Path
-) -> tuple[Snapshot, refit.Fit]:
+) -> tuple[Snapshot, refit.Fit, variants.Variants]:
     result = refit.fit(zip_path, bootstrap_samples)
-    official = refit.official_scores(zip_path)
-    models = refit.model_scores(
-        refit.fit_scores(result), official, refit.version_metadata(zip_path)
-    )
-    drift = check_drift(models, set(official.index), settings.DRIFT_TOLERANCE)
+    found = variants.load(zip_path)
     snap_id = history.snapshot_id(info["fetched_at"], info["sha256"])
+    hub_tags = _hub(result, zip_path, snap_id, work_dir)
+    tags = None if hub_tags is None else {b["benchmark"]: b["domains"] for b in hub_tags[1]}
     snapshot = Snapshot(
         schema=settings.SCHEMA_VERSION,
         id=snap_id,
@@ -133,35 +135,36 @@ def _new_snapshot(
             bootstrap_seed=settings.BOOTSTRAP_SEED,
             bootstrap_chunks=len(refit.chunk_sizes(bootstrap_samples, settings.BOOTSTRAP_CHUNKS)),
             ci_level=settings.CI_LEVEL,
+            resamples_per_draw=settings.RESAMPLES_PER_DRAW,
+            rank_min_benchmarks=settings.RANK_MIN_BENCHMARKS,
         ),
         build=provenance.build_info(),
-        drift=drift,
-        models=models,
+        models=variants.scores(result, found, tags),
+        groups=refit.group_scores(result),
+        core_areas=[CoreArea(name=n, domains=list(d)) for n, d in settings.CORE_AREAS],
     )
-    if (domains := _domains(result, zip_path, snap_id, work_dir)) is not None:
-        snapshot["domains"] = domains
-    if (published := _cyber(snap_id, work_dir)) is not None:
-        snapshot["cyber"] = published
-    return snapshot, result
+    if hub_tags is not None:
+        snapshot["domains"] = _domains(result, found, *hub_tags)
+    return snapshot, result, found
 
 
 def _summary(snap: Snapshot) -> str:
-    unpublished = [m["name"] for m in snap["models"] if m["official_eci"] is None]
-    drift = snap["drift"]
+    models = snap["models"]
+    ranked = sum(m["rank_low"] is not None for m in models)
+    partial = sum(bool(m["missing_areas"]) for m in models)
+    top = next((m for m in models if m["rank_low"] is not None), None)
     return "\n".join(
         [
             f"### ECI snapshot `{snap['id']}`",
             f"- input SHA-256 `{snap['input']['sha256']}`",
-            f"- {len(snap['models'])} models; {drift['shared_models']} shared with Epoch, "
-            f"max drift {drift['max_abs']} (tolerance {drift['tolerance']})",
-            f"- not yet on Epoch: {', '.join(unpublished) or 'none'}",
+            f"- {len(models)} variants of {len(snap['groups'])} fitted model groups; "
+            f"{ranked} all-round with at least {snap['fit']['rank_min_benchmarks']} benchmarks; "
+            f"{partial} with incomplete coverage",
+            f"- top: {top['name']} {top['eci']}" if top else "- top: none",
             *[
-                f"- {p['label']}: {len(p['benchmarks'])} benchmarks, {len(p['scores'])} models"
+                f"- {p['label']}: {len(p['benchmarks'])} benchmarks, {len(p['scores'])} variants"
                 for p in snap.get("domains", {}).get("presets", [])
             ],
-            f"- Epoch's Cyber ECI: {len(snap['cyber']['models'])} models"
-            if "cyber" in snap
-            else "- Epoch's Cyber ECI: unavailable",
         ]
     )
 
@@ -191,15 +194,12 @@ def main(argv: list[str] | None = None) -> int:
     print(f"input {info['sha256']} ({info['url']})")
 
     snapshots = history.load(args.history)
-    fitted: refit.Fit | None = None
-    if any(s["input"]["sha256"] == info["sha256"] for s in snapshots):
+    fitted: tuple[refit.Fit, variants.Variants] | None = None
+    if history.has_input(snapshots, info["sha256"]):
         print("input unchanged since an earlier snapshot; nothing new to record")
     else:
-        try:
-            snap, fitted = _new_snapshot(zip_path, info, args.bootstrap_samples, args.work_dir)
-        except DriftError as error:
-            print(f"::error title=Refit drifted from Epoch's scores::{error}", file=sys.stderr)
-            return 1
+        snap, result, found = _new_snapshot(zip_path, info, args.bootstrap_samples, args.work_dir)
+        fitted = result, found
         print(f"wrote {history.save(args.history, snap)}")
         print(_summary(snap))
         provenance.write_output("snapshot", snap["id"])
@@ -207,6 +207,7 @@ def main(argv: list[str] | None = None) -> int:
         snapshots.append(snap)
 
     site = history.site_data(snapshots)
+    snapshots = history.current(snapshots)
     args.site_json.parent.mkdir(parents=True, exist_ok=True)
     args.site_json.write_text(history.dump(site))
     print(f"wrote {args.site_json}")
@@ -215,9 +216,10 @@ def main(argv: list[str] | None = None) -> int:
     try:
         # The fit runs once per job: a new snapshot's fit is reused; otherwise only the
         # deterministic central fit runs, to rebuild the latest snapshot's details.
-        result = fitted if fitted is not None and latest_zip == zip_path else None
-        result = result or refit.fit(latest_zip, bootstrap_samples=0)
-        details = detail.build(latest_zip, snapshots, result)
+        if fitted is None or latest_zip != zip_path:
+            fitted = refit.fit(latest_zip, bootstrap_samples=0), variants.load(latest_zip)
+        result, found = fitted
+        details = detail.build(latest_zip, snapshots, result, found)
     except detail.ReproduceError as error:
         print(
             f"::error title=Detail refit does not reproduce the snapshot::{error}", file=sys.stderr
@@ -225,7 +227,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     count = detail.write(details, site["slugs"], args.details_dir)
     print(f"wrote {count} model pages to {args.details_dir}")
-    args.fit_json.write_text(fitdata.dump(fitdata.build(result, snapshots[-1], details)))
+    args.fit_json.write_text(fitdata.dump(fitdata.build(result, found, snapshots[-1], details)))
     print(f"wrote {args.fit_json}")
     return 0
 

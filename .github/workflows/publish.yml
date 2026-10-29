@@ -1,7 +1,7 @@
 name: Publish
 
-# Refit ECI from Epoch AI's daily zip, keep a snapshot if the input changed,
-# and deploy the site. Everything that is published is computed here.
+# Score every model variant from Epoch AI's daily zip, keep a snapshot if the input
+# changed, and deploy the site. Everything that is published is computed here.
 on:
   schedule:
     - cron: "17 5 * * *" # Epoch rebuilds the zip around 03:15 UTC
@@ -39,15 +39,14 @@ jobs:
 
       - uses: astral-sh/setup-uv@v10.3.3
 
-      - name: Refit ECI and check drift against Epoch's scores
+      - name: Fit the index and score every variant
         id: refit
         run: uv run --locked eci-live --history history --site-json web/public/eci.json
 
       - name: Refuse to publish numbers without full provenance
         run: |
           jq -e '.latest.build.run_url and .latest.build.commit and .latest.input.archive_url
-            and ((.latest.domains | not) or .latest.domains.hub_module.archive_url)
-            and ((.latest.cyber | not) or .latest.cyber.scores.archive_url)' \
+            and ((.latest.domains | not) or .latest.domains.hub_module.archive_url)' \
             web/public/eci.json > /dev/null
 
       - uses: actions/setup-node@v7
@@ -75,12 +74,10 @@ jobs:
             commit --quiet --message "data: snapshot $SNAPSHOT"
           gh auth setup-git
           git -C history push origin HEAD:refs/heads/data
-          # The zip, plus the hub's benchmark registry (domain tags) and Epoch's Cyber ECI
-          # files when this run could fetch them.
+          # The zip, plus the hub's benchmark registry (domain tags) when this run could
+          # fetch it.
           assets=(build/benchmark_data.zip)
-          for f in build/epoch_benchmark_hub.js build/cyber_eci_scores.csv build/cyber_processed_data_for_eci.csv; do
-            if [ -f "$f" ]; then assets+=("$f"); fi
-          done
+          if [ -f build/epoch_benchmark_hub.js ]; then assets+=(build/epoch_benchmark_hub.js); fi
           gh release create "snapshot-$SNAPSHOT" "${assets[@]}" \
             --target data \
             --title "Snapshot $SNAPSHOT" \

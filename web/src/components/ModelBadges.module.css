@@ -4,17 +4,9 @@
   gap: 4px;
 }
 
-.newDot,
-.previewDot {
+.newDot {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-}
-
-.newDot {
   background: var(--mantine-color-teal-filled);
-}
-
-.previewDot {
-  border: 2px dashed var(--mantine-color-violet-filled);
 }

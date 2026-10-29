@@ -9,7 +9,7 @@ const c = row("C", "Lab A", "2024-01-01", 160, 3);
 const d = row("D", "Lab C", "2024-01-01", 150, 4);
 const all = [a, b, c, d];
 
-test("adds picked models outside the top, in rank order, and marks them", () => {
+test("adds picked models outside the top, best first, and marks them", () => {
   const { rows, added } = withPicked([a, b], all, ["D", "C"]);
   assert.deepEqual(
     rows.map((r) => r.name),
@@ -27,7 +27,7 @@ test("a picked model already in the top is shown once and not marked", () => {
   assert.equal(added.size, 0);
 });
 
-test("a picked model hidden from the top slots in at its rank", () => {
+test("a picked model hidden from the top slots in at its score", () => {
   const { rows } = withPicked([a, d], all, ["B"]);
   assert.deepEqual(
     rows.map((r) => r.name),

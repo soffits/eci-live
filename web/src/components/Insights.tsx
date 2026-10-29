@@ -11,7 +11,7 @@ import {
 } from "@mantine/core";
 import { useElementSize } from "@mantine/hooks";
 import type { ReactNode } from "react";
-import type { Row, Snapshot } from "../data";
+import type { Row } from "../data";
 import { formatRange } from "../format";
 import classes from "./Insights.module.css";
 import { LabLogo, useLabColor } from "./LabLogo";
@@ -49,7 +49,7 @@ function ModelLine({ row, value, swatch }: { row: Row; value: ReactNode; swatch?
 
 const percent = (share: number) => `${(share * 100).toFixed(share >= 0.995 ? 0 : 1)}%`;
 
-/** Who leads, honestly: the share of bootstrap refits each model ranks first in. */
+/** Who leads, honestly: the share of bootstrap draws each variant ranks first in. */
 function WhoIsFirst({ rows }: { rows: Row[] }) {
   const colorOf = useLabColor();
   const { ref, width } = useElementSize();
@@ -66,14 +66,15 @@ function WhoIsFirst({ rows }: { rows: Row[] }) {
     const base = colorOf(r.lab);
     return repeat === 0 ? base : repeat % 2 ? darken(base, 0.35) : lighten(base, 0.35);
   });
-  const title = contenders.length > 1 ? `${contenders.length} models could be #1` : "A clear #1";
+  const title = contenders.length > 1 ? `${contenders.length} variants could be #1` : "A clear #1";
   return (
     <Block title="Who is #1?">
       <Text fw={800} size="lg" lh={1.25} mb={4}>
         {title}
       </Text>
       <Text size="sm" c="dimmed" mb="sm">
-        Share of the bootstrap refits in which each model ranks first, and its 90% rank range.
+        Share of the bootstrap draws in which each variant ranks first among those with enough
+        benchmarks, and its 90% rank range. Variants of one model compete here too.
       </Text>
       <div ref={ref}>
         <Progress.Root size={24} radius="xl" mb="sm">
@@ -109,7 +110,7 @@ function WhoIsFirst({ rows }: { rows: Row[] }) {
         ))}
         {rest >= 0.0005 && (
           <Text size="sm" c="dimmed">
-            Every other model: {percent(rest)}
+            Every other variant: {percent(rest)}
           </Text>
         )}
       </Stack>
@@ -123,7 +124,8 @@ function BestPerLab({ rows, isGeneral }: { rows: Row[]; isGeneral: boolean }) {
   return (
     <Block title={isGeneral ? "Best model per lab" : "Best per lab in this selection"}>
       <Text size="sm" c="dimmed" mb="xs">
-        Over every model, including older ones hidden from the leaderboard.
+        Over every ranked variant, including older models and other effort levels hidden from the
+        leaderboard.
       </Text>
       <Stack gap={8}>
         {[...best.values()].slice(0, LAB_ROWS).map((r) => (
@@ -134,57 +136,12 @@ function BestPerLab({ rows, isGeneral }: { rows: Row[]; isGeneral: boolean }) {
   );
 }
 
-function NotOnEpoch({ rows }: { rows: Row[] }) {
-  const previews = rows.filter((r) => !r.onEpoch);
-  if (previews.length === 0) return null;
-  return (
-    <Block title="Scored here first">
-      <Text size="sm" c="dimmed" mb="xs">
-        Not yet published by Epoch AI. Fewer benchmarks mean wider intervals.
-      </Text>
-      <Stack gap={8}>
-        {previews.map((r) => (
-          <ModelLine key={r.name} row={r} value={`${r.eci.toFixed(1)} · ${r.benchmarks} bm`} />
-        ))}
-      </Stack>
-    </Block>
-  );
-}
-
-function Agreement({ drift, total }: { drift: Snapshot["drift"]; total: number }) {
-  const only = total - drift.shared_models;
-  return (
-    <Block title="Agreement with Epoch">
-      <Text size="sm" className={classes.prose}>
-        Mean gap{" "}
-        <Text span fw={800} className="num">
-          {drift.mean_abs.toFixed(2)}
-        </Text>{" "}
-        ECI, largest {drift.max_abs.toFixed(2)}, over the {drift.shared_models} of {total} models
-        Epoch has published{only > 0 ? ` (the other ${only} are scored here first)` : ""}.
-      </Text>
-    </Block>
-  );
-}
-
-/** The side panel next to the leaderboard. Always computed over all models. */
-export function Insights({
-  rows,
-  general,
-  snapshot,
-  isGeneral,
-}: {
-  rows: Row[];
-  general: Row[];
-  snapshot: Snapshot;
-  isGeneral: boolean;
-}) {
+/** The side panel next to the leaderboard. Always computed over every ranked variant. */
+export function Insights({ rows, isGeneral }: { rows: Row[]; isGeneral: boolean }) {
   return (
     <Stack gap="xl" className={classes.panel}>
       {isGeneral && <WhoIsFirst rows={rows} />}
-      {isGeneral && <NotOnEpoch rows={rows} />}
       <BestPerLab rows={rows} isGeneral={isGeneral} />
-      <Agreement drift={snapshot.drift} total={general.length} />
     </Stack>
   );
 }

@@ -1,19 +1,21 @@
 """`fit.json`: benchmark parameters and the fit's input, for the views beyond the leaderboard.
 
 The page needs them for the "Interpreting the ECI" curves, custom benchmark selections
-(refit in the browser with the same solver as `domain.py`) and the training compute view.
-Written from the latest snapshot's central fit, which `detail.build` has just checked
-against the snapshot.
+(scored in the browser with the same solver as `domain.py`, per variant) and the training
+compute view. Written from the latest snapshot's central fit, which `detail.build` has just
+checked against the snapshot.
 """
 
 import json
 
-from eci_live import domain
 from eci_live.refit import Fit
 from eci_live.schema import FitBenchmark, FitData, FitModel, ModelDetail, Snapshot
+from eci_live.variants import Variants
 
 
-def build(result: Fit, latest: Snapshot, details: dict[str, ModelDetail]) -> FitData:
+def build(
+    result: Fit, found: Variants, latest: Snapshot, details: dict[str, ModelDetail]
+) -> FitData:
     tags = {b["benchmark"]: b for b in latest.get("domains", {}).get("benchmarks", [])}
     benchmarks = [
         FitBenchmark(
@@ -24,10 +26,10 @@ def build(result: Fit, latest: Snapshot, details: dict[str, ModelDetail]) -> Fit
         )
         for r in result.edi.sort_values("benchmark").to_dict("records")
     ]
-    names = [m["name"] for m in latest["models"]]
+    names = [m["version"] for m in latest["models"]]
     model_index = {n: i for i, n in enumerate(names)}
     bench_index = {b["name"]: i for i, b in enumerate(benchmarks)}
-    best = domain.best_scores(result.data).reset_index()
+    best = found.best.reset_index()
     results = [
         (
             model_index[str(r["Model"])],
@@ -35,14 +37,14 @@ def build(result: Fit, latest: Snapshot, details: dict[str, ModelDetail]) -> Fit
             round(float(r["performance"]), 4),
         )
         for r in best.to_dict("records")
-        if str(r["Model"]) in model_index
+        if str(r["Model"]) in model_index and str(r["benchmark"]) in bench_index
     ]
     return FitData(
         snapshot=latest["id"],
         benchmarks=benchmarks,
         models=[
             FitModel(
-                name=n,
+                version=n,
                 country=details[n]["country"] if n in details else None,
                 training_compute_flop=details[n]["training_compute_flop"] if n in details else None,
             )

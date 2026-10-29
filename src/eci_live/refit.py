@@ -1,7 +1,6 @@
-"""A thin layer over Epoch's `eci` package: fit, then attach display metadata."""
+"""A thin layer over Epoch's `eci` package: the group-level fit and its bootstrap."""
 
 import os
-import zipfile
 from collections.abc import Iterator
 from concurrent.futures import ProcessPoolExecutor
 from contextlib import contextmanager
@@ -13,11 +12,11 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-from eci import download_benchmark_data, fit_eci_model, load_model_metadata, prepare_benchmark_data
+from eci import fit_eci_model, prepare_benchmark_data
 from eci.fitting import DEFAULT_ANCHOR_MODEL_HIGH, DEFAULT_ANCHOR_MODEL_LOW
 
 from eci_live import settings
-from eci_live.schema import ModelScore, Weights
+from eci_live.schema import GroupScore, Weights
 
 CLOSED_ACCESS = frozenset({"API access", "Hosted access (no API)", "Unreleased"})
 
@@ -159,23 +158,6 @@ def rank_stats(eci_draws: np.ndarray, names: list[str]) -> pd.DataFrame:
     )
 
 
-def official_scores(zip_path: Path) -> pd.DataFrame:
-    """Epoch's own published scores shipped in the zip, indexed by model name."""
-    with zipfile.ZipFile(zip_path) as zf, zf.open(settings.OFFICIAL_SCORES_MEMBER) as f:
-        return pd.read_csv(f).set_index("Model")
-
-
-def version_metadata(zip_path: Path) -> pd.DataFrame:
-    """Newest model version per model group, as listed in the zip's model table."""
-    table: pd.DataFrame = load_model_metadata(download_benchmark_data(zip_path))
-    newest_first = table.sort_values("date", ascending=False)
-    return (
-        newest_first.dropna(subset=["model_group"])
-        .drop_duplicates("model_group")
-        .set_index("model_group")
-    )
-
-
 def weights_of(accessibility: str | None) -> Weights:
     if accessibility is None:
         return "unknown"
@@ -188,67 +170,21 @@ def lab_of(organization: str | None) -> str:
     return organization.split(",")[0].strip() if organization else "Unknown"
 
 
-Record = dict[str, Any]
-
-
-def _records(frame: pd.DataFrame) -> dict[str, Record]:
-    """Rows keyed by index, with every missing value as None."""
-    clean = frame.astype(object).where(frame.notna(), None)
-    return {
-        str(key): {str(k): v for k, v in row.items()} for key, row in clean.to_dict("index").items()
-    }
-
-
-def _text(value: Any) -> str | None:
-    return None if value in (None, "", "Unknown") else str(value)
-
-
-def _number(value: Any, digits: int = 2) -> float | None:
-    return None if value is None else round(float(value), digits)
-
-
-def _whole(value: Any) -> int | None:
-    return None if value is None else int(value)
-
-
-def _day(value: Any) -> str | None:
-    return None if value is None else pd.Timestamp(value).date().isoformat()
-
-
-def model_scores(
-    fit: pd.DataFrame, official: pd.DataFrame, versions: pd.DataFrame
-) -> list[ModelScore]:
-    """Merge the refit with display metadata.
-
-    Epoch's published row wins where it exists; models Epoch hasn't published yet
-    fall back to their newest version in the model table.
-    """
-    published, newest = _records(official), _records(versions)
-    scores: list[ModelScore] = []
-    for name, row in _records(fit.sort_values("eci", ascending=False)).items():
-        if name in published:
-            meta = published[name]
-            organization, access = meta["Organization"], _text(meta["Model accessibility"])
-            release_date, official_eci = meta["date"], _number(meta["eci"])
-        else:
-            meta = newest.get(name, {})
-            organization, access = meta.get("organization"), _text(meta.get("accessibility"))
-            release_date, official_eci = row["date"], None
-        scores.append(
-            ModelScore(
-                name=name,
-                lab=lab_of(_text(organization)),
-                release_date=_day(release_date),
-                eci=round(float(row["eci"]), 2),
-                ci_low=_number(row.get("eci_ci_low")),
-                ci_high=_number(row.get("eci_ci_high")),
-                benchmarks=int(row["benchmarks"]),
-                rank_low=_whole(row.get("rank_low")),
-                rank_high=_whole(row.get("rank_high")),
-                p_first=_number(row.get("p_first"), digits=3),
-                weights=weights_of(access),
-                accessibility=access,
-                official_eci=official_eci,
-            )
+def group_scores(result: Fit) -> list[GroupScore]:
+    """The group-level fit as published in the snapshot: it sets the scale and the
+    benchmark parameters every variant is scored with."""
+    frame = fit_scores(result).sort_values("eci", ascending=False)
+    return [
+        GroupScore(
+            name=str(name),
+            eci=round(float(row["eci"]), 2),
+            ci_low=_number(row.get("eci_ci_low")),
+            ci_high=_number(row.get("eci_ci_high")),
+            benchmarks=int(row["benchmarks"]),
         )
-    return scores
+        for name, row in frame.iterrows()
+    ]
+
+
+def _number(value: Any) -> float | None:
+    return None if value is None or pd.isna(value) else round(float(value), 2)

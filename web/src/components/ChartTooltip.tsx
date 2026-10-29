@@ -1,5 +1,6 @@
 import { Group, Paper, Stack, Text } from "@mantine/core";
 import type { Row } from "../data";
+import { isProvisional, provisionalReason } from "../eligibility";
 import { formatCi, formatDate, formatPercent, formatRange } from "../format";
 import { LabLogo } from "./LabLogo";
 import { ModelBadges } from "./ModelBadges";
@@ -25,6 +26,7 @@ export function ChartTooltip({
         </Group>
         <Text size="xs" c="dimmed">
           {row.lab} · released {formatDate(row.released)}
+          {row.effort ? ` · effort: ${row.effort}` : ""}
         </Text>
         <Text size="sm">
           <Text span fw={800} className="num">
@@ -38,18 +40,22 @@ export function ChartTooltip({
         {row.rank_low !== null && row.rank_high !== null && (
           <Text size="xs" c="dimmed">
             Rank {formatRange(row.rank_low, row.rank_high)} (90%)
-            {row.p_first ? ` · #1 in ${formatPercent(row.p_first)} of refits` : ""}
+            {row.p_first ? ` · #1 in ${formatPercent(row.p_first)} of draws` : ""}
           </Text>
         )}
         {row.general_eci === row.eci ? (
           <Text size="xs" c="dimmed">
-            {row.benchmarks} benchmarks · Epoch:{" "}
-            {row.official_eci === null ? "not published yet" : row.official_eci.toFixed(1)}
+            {row.benchmarks} benchmarks
           </Text>
         ) : (
           <Text size="xs" c="dimmed">
             {row.benchmarks} benchmarks in this selection · general ECI{" "}
             {row.general_eci === null ? "none" : row.general_eci.toFixed(1)}
+          </Text>
+        )}
+        {isProvisional(row) && (
+          <Text size="xs" c="dimmed" fs="italic">
+            {provisionalReason(row)}
           </Text>
         )}
         <ModelBadges row={row} />

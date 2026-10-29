@@ -11,7 +11,6 @@ import {
   predictedScore,
   pullPoints,
   splitResults,
-  versionLabel,
 } from "./detail.ts";
 
 // Rows exported by the pipeline (models/gpt-6-astra.json, models/beam-1-0.json) for the
@@ -54,7 +53,7 @@ test("fit points sit on the shared curve at their predicted score", () => {
   assert.deepEqual([first?.x, last?.x], [-4, 4]);
 });
 
-test("thin evidence: the index minimum and one more", () => {
+test("thin evidence: up to five benchmarks", () => {
   assert.deepEqual([4, 5, 6].map(isThin), [true, true, false]);
 });
 
@@ -62,7 +61,6 @@ test("results split into used and unused, grouped by reason", () => {
   const r = (benchmark: string, used: boolean, reason: string | null): BenchmarkResult => ({
     id: benchmark,
     benchmark,
-    version: "v",
     score: 0.5,
     score_column: "Score",
     stderr: null,
@@ -105,7 +103,7 @@ test("pull is the difference of the rounded percentages", () => {
   assert.equal(pullPoints(0.5, 0.5), 0);
 });
 
-test("group titles read as plurals, version labels drop the model name", () => {
+test("group titles read as plurals", () => {
   assert.equal(
     groupTitle("This benchmark isn't part of the index."),
     "Benchmarks outside the index",
@@ -114,11 +112,10 @@ test("group titles read as plurals, version labels drop the model name", () => {
     groupTitle("Replaced in the fit by X, a newer version."),
     "Replaced in the fit by X, a newer version",
   );
-  const versions = [
-    { version: "gpt-6-astra_unknown", display_name: "GPT-6 Astra (unknown thinking)" },
-  ];
-  assert.equal(versionLabel("gpt-6-astra_unknown", versions, "GPT-6 Astra"), "unknown thinking");
-  assert.equal(versionLabel("other", versions, "GPT-6 Astra"), "other");
+  assert.equal(
+    groupTitle("Another result of this variant scored higher here; the score keeps the best one."),
+    "Lower repeat results (each benchmark's best counts)",
+  );
 });
 
 test("scores get decimals that fit their scale", () => {

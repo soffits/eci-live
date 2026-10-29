@@ -46,7 +46,7 @@ function DotTooltip({ active, payload }: { active?: boolean; payload?: { payload
 }
 
 /**
- * Per benchmark, the fitted curve of expected score against ECI, with every model's actual
+ * Per benchmark, the fitted curve of expected score against ECI, with every variant's actual
  * result behind it: what an ECI value means in concrete benchmark terms.
  */
 export function Interpreting({
@@ -62,7 +62,7 @@ export function Interpreting({
 }) {
   const { ref, width } = useElementSize();
   const narrow = useMediaQuery("(max-width: 48em)") ?? false;
-  const eciOf = useMemo(() => new Map(rows.map((r) => [r.name, r.general_eci])), [rows]);
+  const byVersion = useMemo(() => new Map(rows.map((r) => [r.version, r])), [rows]);
   const picked = value
     .map((name) => fit.benchmarks.find((b) => b.name === name))
     .filter((b) => b !== undefined);
@@ -70,9 +70,12 @@ export function Interpreting({
   const dots = picked.map((b) => {
     const index = fit.benchmarks.indexOf(b);
     return fit.results.flatMap(([m, bi, perf]): Dot[] => {
-      const model = fit.models[m]?.name;
-      const x = model === undefined ? undefined : eciOf.get(model);
-      return bi === index && model && x != null ? [{ x, y: perf, model, benchmark: b.name }] : [];
+      const version = fit.models[m]?.version;
+      const row = version === undefined ? undefined : byVersion.get(version);
+      const x = row?.general_eci;
+      return bi === index && row && x != null
+        ? [{ x, y: perf, model: row.name, benchmark: b.name }]
+        : [];
     });
   });
   const xs = dots.flat().map((d) => d.x);
