@@ -1,17 +1,43 @@
+.panel {
+  position: sticky;
+  top: var(--mantine-spacing-md);
+}
+
 .block {
   min-width: 0;
 }
 
 .eyebrow {
   margin-bottom: 6px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--mantine-color-dimmed);
 }
 
-.labRow {
-  padding-left: 10px;
-  border-left: 3px solid;
+/* Name left, value right; a long name wraps under itself instead of being cut. */
+.line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.who {
+  align-self: center;
+}
+
+.name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.value {
+  flex: none;
+  white-space: nowrap;
+}
+
+.prose {
+  text-wrap: pretty;
 }

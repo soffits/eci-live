@@ -37,10 +37,11 @@ test("fallback-coloured labs share one 'Other labs' entry, placed last", () => {
   assert.deepEqual(last?.labs, ["Unknown", "Hugging Face"]);
 });
 
-test("labs sharing an own colour are named together", () => {
+test("labs sharing an own colour have one entry, named after the first", () => {
   const entries = legendEntries(LABS, colorOf, hasOwnColor);
   assert.deepEqual(
     entries.map((e) => e.label),
-    ["OpenAI", "Google DeepMind / Google", "Anthropic", "Other labs"],
+    ["OpenAI", "Google DeepMind", "Anthropic", "Other labs"],
   );
+  assert.deepEqual(entries[1]?.labs, ["Google DeepMind", "Google"]);
 });

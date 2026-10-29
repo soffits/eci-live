@@ -23,7 +23,7 @@ export function LabLegend({ labs, selected, onToggle }: Props) {
           checked={entry.labs.every((lab) => selected.includes(lab))}
           onChange={() => onToggle(entry.labs)}
           color={entry.color}
-          title={entry.other ? entry.labs.join(", ") : undefined}
+          title={entry.labs.length > 1 ? entry.labs.join(", ") : undefined}
         >
           <Group component="span" gap={6} wrap="nowrap">
             <ColorSwatch component="span" color={entry.color} size={8} withShadow={false} />

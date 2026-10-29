@@ -1,0 +1,28 @@
+.name {
+  white-space: nowrap;
+}
+
+.dots {
+  display: inline-flex;
+  flex: none;
+  gap: 4px;
+}
+
+.newDot,
+.previewDot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+
+.newDot {
+  background: var(--mantine-color-teal-filled);
+}
+
+.previewDot {
+  border: 2px dashed var(--mantine-color-violet-filled);
+}
+
+.pagination {
+  padding-inline: var(--mantine-spacing-sm);
+}
