@@ -86,7 +86,6 @@ export function Leaderboard({
   added = new Set(),
   onRemove,
   skipped = new Map(),
-  minBenchmarks = 0,
   othersOf,
   onAdd,
   axisLabel = "ECI",
@@ -97,7 +96,6 @@ export function Leaderboard({
   onRemove?: (name: string) => void;
   /** Default variants shown in place of thinner higher-effort ones, with those. */
   skipped?: Map<string, Row[]>;
-  minBenchmarks?: number;
   /** A row's other variants, for its "+N" menu. */
   othersOf?: (row: Row) => Row[];
   onAdd?: (name: string) => void;
@@ -156,9 +154,7 @@ export function Leaderboard({
           )}
           {stacked ? <MarkDots row={row} /> : row.isNew && <NewMark />}
           {isProvisional(row) && <ProvisionalMark row={row} />}
-          {skipped.has(row.name) && (
-            <FallbackMark skipped={skipped.get(row.name) ?? []} min={minBenchmarks} />
-          )}
+          {skipped.has(row.name) && <FallbackMark skipped={skipped.get(row.name) ?? []} />}
           {othersOf && onAdd && (
             <VariantsMenu row={row} others={othersOf(row)} shown={shown} onAdd={onAdd} />
           )}

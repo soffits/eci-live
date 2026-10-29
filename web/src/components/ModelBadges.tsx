@@ -31,19 +31,24 @@ export function AddedMark({ name, onRemove }: { name: string; onRemove: () => vo
   );
 }
 
-/** Marks a default variant shown because its model's higher-effort ones are too thin. */
-export function FallbackMark({ skipped, min }: { skipped: Row[]; min: number }) {
+/** Marks a default variant shown because its model's higher-effort ones don't qualify. */
+export function FallbackMark({ skipped }: { skipped: Row[] }) {
   const top = skipped[0];
   if (!top) return null;
-  const count = `${top.benchmarks} benchmark${top.benchmarks === 1 ? "" : "s"}`;
+  // Say the real reason (too few benchmarks or a missing area), from the shared rule.
+  const coverageOnly = top.gaps.every((g) => g.startsWith("no "));
+  const short =
+    coverageOnly && top.missing_areas?.length
+      ? `no ${top.missing_areas.join(", ").toLowerCase()}`
+      : "too few";
   return (
     <Tooltip
-      label={`${top.name} has only ${count}, fewer than the minimum of ${min}, so the next effort level down stands for this model.`}
+      label={`${top.name} isn't ranked here (${top.gaps.join("; ")}), so the next effort level down stands for this model.`}
       multiline
       w={260}
     >
       <Badge size="sm" color="gray" variant="light" flex="none">
-        {top.effort ? `${top.effort}: too few` : "fallback"}
+        {top.effort ? `${top.effort}: ${short}` : "fallback"}
       </Badge>
     </Tooltip>
   );
