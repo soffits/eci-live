@@ -20,8 +20,8 @@ export function lineOf(name: string): string {
 }
 
 /**
- * A model is superseded when the same lab has released a newer model in the same line with
- * an ECI at least as high. Models without a release date or a known lab are never superseded.
+ * A model is superseded when the same lab has released a newer model in the same line, so each
+ * line shows only its latest version. Models without a release date or a known lab never are.
  */
 export function isSuperseded(row: Row, rows: Row[]): boolean {
   const released = row.released;
@@ -32,7 +32,6 @@ export function isSuperseded(row: Row, rows: Row[]): boolean {
       other.lab === row.lab &&
       other.released !== null &&
       other.released > released &&
-      other.eci >= row.eci &&
       lineOf(other.name) === line,
   );
 }

@@ -219,7 +219,7 @@ export function App({ data }: { data: Promise<SiteData> }) {
                   </Group>
                   <Text size="xs" c="dimmed" mb="sm" className={classes.balance}>
                     {topView === "current"
-                      ? `Each lab's ${LINES_PER_LAB} most recently released lines (a line is the name without its version), newest version of each (${hidden} hidden; ranks count every model).`
+                      ? `The latest version of each lab's ${LINES_PER_LAB} most recently released lines (a line is the name without its version) (${hidden} hidden; ranks count every model).`
                       : "Every model, including ones their lab has since matched or beaten."}
                   </Text>
                   <Box mb="sm">

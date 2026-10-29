@@ -6,17 +6,10 @@ import { row } from "./testRows.ts";
 
 const names = (rows: Row[]) => currentGeneration(rows).map((r) => r.name);
 
-test("hides a model once its lab releases a newer one that scores at least as high", () => {
-  const old = row("A1", "Lab A", "2025-01-01", 150);
-  const better = row("A2", "Lab A", "2025-06-01", 155);
-  const equal = row("A3", "Lab A", "2025-09-01", 155);
-  assert.deepEqual(names([old, better, equal]), ["A3"]);
-});
-
-test("keeps an older model that still beats its lab's newer releases", () => {
-  const flagship = row("A1", "Lab A", "2025-01-01", 160);
-  const smaller = row("A2", "Lab A", "2025-06-01", 150);
-  assert.deepEqual(names([flagship, smaller]), ["A1", "A2"]);
+test("each line keeps only its newest version, even if an older one scored higher", () => {
+  const old = row("Flash 3.7", "Lab A", "2025-01-01", 158);
+  const newer = row("Flash 3.8", "Lab A", "2025-06-01", 157);
+  assert.deepEqual(names([old, newer]), ["Flash 3.8"]);
 });
 
 test("only compares within a lab", () => {
