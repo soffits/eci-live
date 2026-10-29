@@ -14,13 +14,13 @@ import {
   Text,
   Title,
 } from "@mantine/core";
-import { useDocumentTitle } from "@mantine/hooks";
+import { useDocumentTitle, useMediaQuery } from "@mantine/hooks";
 import { Suspense, use } from "react";
 import {
+  Area,
   CartesianGrid,
   ComposedChart,
   Line,
-  LineChart,
   ReferenceLine,
   ResponsiveContainer,
   Scatter,
@@ -36,8 +36,20 @@ import {
   type Row,
   type SiteData,
 } from "../data";
-import { curve, type FitPoint, fitPoints, formatFlop, isThin, splitResults } from "../detail";
+import {
+  curve,
+  type FitPoint,
+  fitPoints,
+  formatFlop,
+  formatScore,
+  groupTitle,
+  isThin,
+  pullPoints,
+  splitResults,
+  versionLabel,
+} from "../detail";
 import { formatDate, formatPercent, formatRange } from "../format";
+import { niceTicks } from "../scale";
 import { LabLogo } from "./LabLogo";
 import { ModelBadges } from "./ModelBadges";
 import classes from "./ModelPage.module.css";
@@ -66,13 +78,13 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 function Stat({ label, value, sub }: { label: string; value: string; sub: React.ReactNode }) {
   return (
-    <Paper withBorder radius="lg" p="md" className={classes.stat}>
+    <div className={classes.stat}>
       <Text className={classes.label}>{label}</Text>
       <Text className={`${classes.value} num`}>{value}</Text>
-      <Text size="xs" c="dimmed" className="num">
+      <Text size="sm" c="dimmed" className="num">
         {sub}
       </Text>
-    </Paper>
+    </div>
   );
 }
 
@@ -80,14 +92,14 @@ function Headline({ row, site }: { row: Row; site: SiteData }) {
   const ci =
     row.ci_low === null || row.ci_high === null
       ? "a scale anchor, fixed by definition"
-      : `90% interval ${row.ci_low.toFixed(1)}–${row.ci_high.toFixed(1)}`;
+      : `90% CI ${row.ci_low.toFixed(1)}–${row.ci_high.toFixed(1)}`;
   const rankRange =
     row.rank_low === null || row.rank_high === null
       ? "no rank interval"
       : `90% rank interval ${formatRange(row.rank_low, row.rank_high)}`;
   const diff = row.official_eci === null ? null : row.eci - row.official_eci;
   return (
-    <SimpleGrid cols={{ base: 2, md: 4 }} spacing="sm">
+    <SimpleGrid cols={{ base: 2, md: 4 }} spacing={0} className={classes.stats}>
       <Stat label="ECI" value={row.eci.toFixed(1)} sub={ci} />
       <Stat label="Rank" value={row.tiedFirst ? "=1" : `#${row.rank}`} sub={rankRange} />
       <Stat
@@ -97,11 +109,11 @@ function Headline({ row, site }: { row: Row; site: SiteData }) {
       />
       <Stat
         label="Epoch's score"
-        value={row.official_eci === null ? "—" : row.official_eci.toFixed(1)}
+        value={row.official_eci === null ? "—" : row.official_eci.toFixed(2)}
         sub={
           diff === null
             ? "not published by Epoch yet"
-            : `this refit ${diff >= 0 ? "+" : "−"}${Math.abs(diff).toFixed(2)}`
+            : `this refit ${row.eci.toFixed(2)}, ${diff >= 0 ? "+" : "−"}${Math.abs(diff).toFixed(2)}`
         }
       />
     </SimpleGrid>
@@ -116,7 +128,7 @@ function Facts({ row, detail, site }: { row: Row; detail: ModelDetail; site: Sit
     [
       "Weights",
       <Group gap={6} key="w">
-        <Badge size="sm" variant={WEIGHTS[row.weights].variant} color={WEIGHTS[row.weights].color}>
+        <Badge size="sm" color={WEIGHTS[row.weights].color}>
           {WEIGHTS[row.weights].label}
         </Badge>
         {row.accessibility && (
@@ -142,9 +154,13 @@ function Facts({ row, detail, site }: { row: Row; detail: ModelDetail; site: Sit
       : []),
     [
       `Versions merged (${detail.versions.length})`,
-      <Text size="sm" key="v">
-        {detail.versions.map((v) => v.display_name ?? v.version).join(", ")}
-      </Text>,
+      <Group gap={6} key="v">
+        {detail.versions.map((v) => (
+          <Badge key={v.version} color="gray" title={v.version}>
+            {versionLabel(v.version, detail.versions, row.name)}
+          </Badge>
+        ))}
+      </Group>,
     ],
   ];
   return (
@@ -173,36 +189,87 @@ function HistoryNote({ detail }: { detail: ModelDetail }) {
   );
 }
 
+/** A snapshot's time: the date, plus the hour when several snapshots share a day. */
+function snapshotLabel(time: number, sameDay: boolean): string {
+  const day = formatDate(time);
+  return sameDay
+    ? `${day.replace(/, \d{4}$/, "")} ${new Date(time).toISOString().slice(11, 16)}`
+    : day;
+}
+
 function History({ detail }: { detail: ModelDetail }) {
-  const points = detail.history.map((h) => ({ ...h, time: Date.parse(h.fetched_at) }));
+  const points = detail.history.map((h) => ({
+    ...h,
+    time: Date.parse(h.fetched_at),
+    band: [h.ci_low ?? h.eci, h.ci_high ?? h.eci],
+  }));
+  const times = points.map((p) => p.time);
+  const days = new Set(points.map((p) => p.fetched_at.slice(0, 10)));
+  const yTicks = niceTicks(
+    Math.min(...points.map((p) => p.ci_low ?? p.eci)) - 1,
+    Math.max(...points.map((p) => p.ci_high ?? p.eci)) + 1,
+    3,
+  );
+  const sameDay = days.size < points.length;
   return (
-    <ResponsiveContainer width="100%" height={180}>
-      <LineChart data={points} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
-        <CartesianGrid stroke="var(--mantine-color-default-border)" vertical={false} />
-        <XAxis
-          dataKey="time"
-          type="number"
-          domain={["dataMin", "dataMax"]}
-          tickFormatter={(t: number) => formatDate(t)}
-          tick={{ fill: "var(--mantine-color-dimmed)", fontSize: 11 }}
-          tickLine={false}
-          axisLine={false}
-        />
-        <YAxis
-          domain={["auto", "auto"]}
-          width={40}
-          tick={{ fill: "var(--mantine-color-dimmed)", fontSize: 11 }}
-          tickLine={false}
-          axisLine={false}
-        />
-        <Tooltip
-          wrapperStyle={{ userSelect: "none" }}
-          formatter={(v) => (typeof v === "number" ? v.toFixed(1) : String(v))}
-          labelFormatter={(t) => formatDate(Number(t))}
-        />
-        <Line dataKey="eci" stroke="var(--mantine-primary-color-filled)" strokeWidth={2} />
-      </LineChart>
-    </ResponsiveContainer>
+    <Stack gap={6}>
+      <ResponsiveContainer width="100%" height={200}>
+        <ComposedChart data={points} margin={{ top: 8, right: 24, bottom: 4, left: 0 }}>
+          <CartesianGrid stroke="var(--eci-grid)" vertical={false} />
+          <XAxis
+            dataKey="time"
+            type="number"
+            scale="time"
+            domain={[Math.min(...times), Math.max(...times)]}
+            ticks={points.length <= 6 ? times : undefined}
+            tickFormatter={(t: number) => snapshotLabel(t, sameDay)}
+            tick={{ fill: "var(--mantine-color-dimmed)", fontSize: 12 }}
+            tickLine={false}
+            tickMargin={8}
+            axisLine={{ stroke: "var(--eci-axis)" }}
+            padding={{ left: 24, right: 24 }}
+          />
+          <YAxis
+            domain={[yTicks[0] ?? "auto", yTicks.at(-1) ?? "auto"]}
+            ticks={yTicks}
+            width={44}
+            tick={{ fill: "var(--mantine-color-dimmed)", fontSize: 12 }}
+            tickLine={false}
+            axisLine={false}
+            allowDecimals={false}
+          />
+          <Tooltip
+            wrapperStyle={{ userSelect: "none" }}
+            formatter={(v) =>
+              Array.isArray(v)
+                ? `${Number(v[0]).toFixed(1)}–${Number(v[1]).toFixed(1)}`
+                : typeof v === "number"
+                  ? v.toFixed(2)
+                  : String(v)
+            }
+            labelFormatter={(t) => snapshotLabel(Number(t), true)}
+          />
+          <Area
+            dataKey="band"
+            name="90% CI"
+            stroke="none"
+            fill="var(--mantine-primary-color-filled)"
+            fillOpacity={0.15}
+            isAnimationActive={false}
+          />
+          <Line
+            dataKey="eci"
+            name="ECI"
+            stroke="var(--mantine-primary-color-filled)"
+            strokeWidth={2.5}
+            isAnimationActive={false}
+          />
+        </ComposedChart>
+      </ResponsiveContainer>
+      <Text size="sm" c="dimmed">
+        {points.length} snapshots: the line is the ECI, the band its 90% interval.
+      </Text>
+    </Stack>
   );
 }
 
@@ -223,38 +290,53 @@ function FitTooltip({ active, payload }: { active?: boolean; payload?: { payload
 
 /** Every fitted benchmark against the one logistic curve they all share. */
 function FitChart({ points }: { points: FitPoint[] }) {
-  const reach = Math.max(4, ...points.map((p) => Math.abs(p.x))) + 0.5;
-  const line = curve(-reach, reach);
-  const pullColor = (p: FitPoint) =>
-    p.pull >= 0 ? "var(--mantine-color-teal-filled)" : "var(--mantine-color-red-filled)";
+  // The curve's own units: slope × (ECI − difficulty). The view spans the data (and 0),
+  // with a little room so no dot sits on the frame.
+  const xs = points.map((p) => p.x);
+  const lo = Math.floor(Math.min(0, ...xs) - 0.6);
+  const hi = Math.ceil(Math.max(0, ...xs) + 0.6);
+  const line = curve(lo, hi);
+  const ticks = Array.from({ length: hi - lo + 1 }, (_, i) => lo + i).filter((t) =>
+    hi - lo <= 8 ? true : t % 2 === 0,
+  );
+  const pullColor = (p: FitPoint) => {
+    const pts = pullPoints(p.actual, p.predicted);
+    return pts > 0
+      ? "var(--mantine-color-teal-filled)"
+      : pts < 0
+        ? "var(--mantine-color-red-filled)"
+        : "var(--mantine-color-dimmed)";
+  };
   return (
-    <ResponsiveContainer width="100%" height={300}>
-      <ComposedChart margin={{ top: 8, right: 12, bottom: 18, left: 0 }}>
-        <CartesianGrid stroke="var(--mantine-color-default-border)" />
+    <ResponsiveContainer width="100%" height={340}>
+      <ComposedChart margin={{ top: 12, right: 16, bottom: 8, left: 0 }}>
+        <CartesianGrid stroke="var(--eci-grid)" />
         <XAxis
           type="number"
           dataKey="x"
-          domain={[-reach, reach]}
-          ticks={[0]}
-          tickFormatter={() => "at its difficulty"}
-          tick={{ fill: "var(--mantine-color-dimmed)", fontSize: 11 }}
+          domain={[lo, hi]}
+          ticks={ticks}
+          tickFormatter={(t: number) => (t === 0 ? "difficulty" : t > 0 ? `+${t}` : String(t))}
+          tick={{ fill: "var(--mantine-color-dimmed)", fontSize: 12 }}
           tickLine={false}
-          axisLine={false}
+          tickMargin={8}
+          axisLine={{ stroke: "var(--eci-axis)" }}
+          height={50}
           label={{
-            value: "← harder for this model · easier →",
+            value: "slope × (ECI − difficulty): left is harder for this model",
             position: "insideBottom",
-            offset: -12,
+            offset: 0,
             fill: "var(--mantine-color-dimmed)",
             fontSize: 12,
           }}
         />
         <YAxis
           type="number"
-          domain={[0, 1]}
+          domain={[-0.04, 1.04]}
           ticks={[0, 0.25, 0.5, 0.75, 1]}
           tickFormatter={(v: number) => `${Math.round(v * 100)}%`}
-          width={44}
-          tick={{ fill: "var(--mantine-color-dimmed)", fontSize: 11 }}
+          width={48}
+          tick={{ fill: "var(--mantine-color-dimmed)", fontSize: 12 }}
           tickLine={false}
           axisLine={false}
         />
@@ -264,7 +346,8 @@ function FitChart({ points }: { points: FitPoint[] }) {
           dataKey="y"
           dot={false}
           activeDot={false}
-          stroke="var(--mantine-color-dimmed)"
+          stroke="var(--mantine-color-text)"
+          strokeOpacity={0.7}
           strokeWidth={2}
           isAnimationActive={false}
           tooltipType="none"
@@ -277,7 +360,8 @@ function FitChart({ points }: { points: FitPoint[] }) {
               { x: p.x, y: p.actual },
             ]}
             stroke={pullColor(p)}
-            strokeOpacity={0.6}
+            strokeOpacity={0.85}
+            strokeWidth={2}
           />
         ))}
         <Scatter
@@ -288,8 +372,9 @@ function FitChart({ points }: { points: FitPoint[] }) {
             <circle
               cx={props.cx}
               cy={props.cy}
-              r={5}
+              r={4.5}
               fill={props.payload ? pullColor(props.payload) : "currentColor"}
+              fillOpacity={0.9}
               stroke="var(--eci-surface)"
               strokeWidth={1.5}
             />
@@ -300,72 +385,130 @@ function FitChart({ points }: { points: FitPoint[] }) {
   );
 }
 
-function pp(value: number): string {
-  const points = Math.round(value * 100);
+function pp(points: number): string {
   return `${points > 0 ? "+" : points < 0 ? "−" : "±"}${Math.abs(points)} pts`;
 }
 
+/** Actual minus predicted as a bar from a centre line, in percentage points. */
+function PullBar({ points }: { points: number }) {
+  const width = Math.min(Math.abs(points), 25) * 2;
+  return (
+    <div className={classes.pullTrack} aria-hidden>
+      <div
+        className={classes.pullBar}
+        data-sign={points > 0 ? "up" : points < 0 ? "down" : undefined}
+        style={{ width: `${width}%`, [points >= 0 ? "left" : "right"]: "50%" }}
+      />
+    </div>
+  );
+}
+
 function HowComputed({ row, detail, site }: { row: Row; detail: ModelDetail; site: SiteData }) {
+  const narrow = useMediaQuery("(max-width: 48em)") ?? false;
   const points = fitPoints(row.eci, detail.fit);
   const commit = site.latest.fit.eci_public_commit;
   return (
-    <Stack gap="md">
-      <Text size="sm" className={classes.prose}>
-        ECI gives each model one number and each benchmark two: a <b>difficulty</b> on the same
-        scale, and a <b>slope</b> for how sharply scores rise as models get more capable. Scores are
-        first rescaled so random guessing is 0% and the benchmark's ceiling is 100%. Every score is
-        then predicted by one S-shaped (logistic) curve,{" "}
-        <Text span ff="monospace" size="sm">
-          predicted = logistic(slope × (ECI − difficulty))
-        </Text>
-        , and the fit picks the numbers that make all models' predictions match all their scores at
-        once. Claude 3.5 Sonnet is pinned at 130 and GPT-5 at 150 to fix the scale. The 90% interval
-        comes from refitting {site.latest.fit.bootstrap_samples} times on resampled benchmark
-        results. This is Epoch AI's method (<Anchor href={LINKS.epochEci}>Epoch's ECI page</Anchor>,{" "}
-        <Anchor href={LINKS.paper}>paper</Anchor>), run unchanged from{" "}
-        <Anchor href={`${LINKS.eciPublic}/tree/${commit}`}>
-          eci-public @ {commit.slice(0, 7)}
-        </Anchor>
-        .
-      </Text>
-      <Text size="sm" className={classes.prose}>
-        Below, each of the {detail.fit.length} benchmarks used for {row.name} is a dot against that
-        curve. Dots{" "}
-        <Text span c="teal" fw={700}>
-          above
-        </Text>{" "}
-        it scored better than the fit predicts and pull the ECI up; dots{" "}
-        <Text span c="red" fw={700}>
-          below
-        </Text>{" "}
-        pull it down.
-      </Text>
-      <FitChart points={points} />
-      <Table.ScrollContainer minWidth={560}>
-        <Table striped highlightOnHover verticalSpacing={6} className="num">
+    <Stack gap="lg">
+      <Grid gap="xl" align="center">
+        <Grid.Col span={{ base: 12, lg: 5 }}>
+          <Stack gap="md">
+            <Text className={classes.prose}>
+              ECI gives each model one number and each benchmark two: a <b>difficulty</b> on the
+              same scale, and a <b>slope</b> for how sharply scores rise as models get more capable.
+              Scores are first rescaled so random guessing is 0% and the benchmark's ceiling is
+              100%. Every score is then predicted by one S-shaped (logistic) curve,{" "}
+              <span className={classes.formula}>
+                predicted = logistic(slope × (ECI − difficulty))
+              </span>
+              , and the fit picks the numbers that make all predictions match all scores at once.
+              Claude 3.5 Sonnet is pinned at 130 and GPT-5 at 150 to fix the scale; the 90% interval
+              comes from {site.latest.fit.bootstrap_samples} refits on resampled results.
+            </Text>
+            <Text className={classes.prose}>
+              This is Epoch AI's method (
+              <Anchor href={LINKS.epochEci} className={classes.keep}>
+                Epoch's ECI page
+              </Anchor>
+              , <Anchor href={LINKS.paper}>paper</Anchor>), run unchanged from{" "}
+              <Anchor href={`${LINKS.eciPublic}/tree/${commit}`} className={classes.keep}>
+                eci-public @ {commit.slice(0, 7)}
+              </Anchor>
+              . Each of the {detail.fit.length} benchmarks used for {row.name} is a dot on the
+              curve: dots{" "}
+              <Text span c="teal" fw={700}>
+                above
+              </Text>{" "}
+              it scored better than predicted and pull the ECI up; dots{" "}
+              <Text span c="red" fw={700}>
+                below
+              </Text>{" "}
+              pull it down.
+            </Text>
+          </Stack>
+        </Grid.Col>
+        <Grid.Col span={{ base: 12, lg: 7 }}>
+          <FitChart points={points} />
+        </Grid.Col>
+      </Grid>
+      <Table.ScrollContainer minWidth={narrow ? 0 : 640}>
+        <Table
+          highlightOnHover
+          stickyHeader
+          verticalSpacing={8}
+          horizontalSpacing={narrow ? "xs" : "md"}
+          layout="fixed"
+          className="num"
+          borderColor="var(--eci-card-border)"
+        >
           <Table.Thead>
             <Table.Tr>
               <Table.Th>Benchmark</Table.Th>
-              <Table.Th ta="right">Difficulty</Table.Th>
-              <Table.Th ta="right">Slope</Table.Th>
-              <Table.Th ta="right">Predicted</Table.Th>
-              <Table.Th ta="right">Actual</Table.Th>
-              <Table.Th ta="right">Pull</Table.Th>
+              <Table.Th ta="right" w={100} visibleFrom="sm">
+                Difficulty
+              </Table.Th>
+              <Table.Th ta="right" w={80} visibleFrom="sm">
+                Slope
+              </Table.Th>
+              <Table.Th ta="right" w={narrow ? 56 : 96}>
+                {narrow ? "Pred." : "Predicted"}
+              </Table.Th>
+              <Table.Th ta="right" w={narrow ? 56 : 80}>
+                {narrow ? "Act." : "Actual"}
+              </Table.Th>
+              <Table.Th ta="right" w={narrow ? 72 : 88}>
+                Pull
+              </Table.Th>
+              <Table.Th w="22%" visibleFrom="md">
+                <span className="chrome">Pull, ±25 pts</span>
+              </Table.Th>
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
-            {detail.fit.map((t, i) => (
-              <Table.Tr key={t.benchmark}>
-                <Table.Td>{t.benchmark}</Table.Td>
-                <Table.Td ta="right">{t.edi.toFixed(1)}</Table.Td>
-                <Table.Td ta="right">{t.slope.toFixed(3)}</Table.Td>
-                <Table.Td ta="right">{formatPercent(points[i]?.predicted ?? t.predicted)}</Table.Td>
-                <Table.Td ta="right">{formatPercent(t.actual)}</Table.Td>
-                <Table.Td ta="right" c={(points[i]?.pull ?? 0) >= 0 ? "teal" : "red"} fw={600}>
-                  {pp(points[i]?.pull ?? t.actual - t.predicted)}
-                </Table.Td>
-              </Table.Tr>
-            ))}
+            {detail.fit
+              .map((t, i) => ({ t, predicted: points[i]?.predicted ?? t.predicted }))
+              .map(({ t, predicted }) => ({ t, predicted, pull: pullPoints(t.actual, predicted) }))
+              .sort((a, b) => b.pull - a.pull)
+              .map(({ t, predicted, pull }) => {
+                return (
+                  <Table.Tr key={t.benchmark}>
+                    <Table.Td>{t.benchmark}</Table.Td>
+                    <Table.Td ta="right">{t.edi.toFixed(1)}</Table.Td>
+                    <Table.Td ta="right">{t.slope.toFixed(3)}</Table.Td>
+                    <Table.Td ta="right">{Math.round(predicted * 100)}%</Table.Td>
+                    <Table.Td ta="right">{Math.round(t.actual * 100)}%</Table.Td>
+                    <Table.Td
+                      ta="right"
+                      c={pull > 0 ? "teal" : pull < 0 ? "red" : "dimmed"}
+                      fw={pull === 0 ? 400 : 600}
+                    >
+                      {pp(pull)}
+                    </Table.Td>
+                    <Table.Td visibleFrom="md">
+                      <PullBar points={pull} />
+                    </Table.Td>
+                  </Table.Tr>
+                );
+              })}
           </Table.Tbody>
         </Table>
       </Table.ScrollContainer>
@@ -373,23 +516,48 @@ function HowComputed({ row, detail, site }: { row: Row; detail: ModelDetail; sit
   );
 }
 
-function score(value: number): string {
-  if (Number.isInteger(value)) return String(value);
-  return Math.abs(value) >= 100 ? value.toFixed(1) : value.toPrecision(3);
-}
-
-function ResultsTable({ results }: { results: BenchmarkResult[] }) {
+/** Raw scores and errors get decimals by the size of the scores in their table. */
+function ResultsTable({ results, detail }: { results: BenchmarkResult[]; detail: ModelDetail }) {
+  const scale = (r: BenchmarkResult) => {
+    const same = results.filter((x) => x.benchmark === r.benchmark).map((x) => Math.abs(x.score));
+    return Math.max(...same, Math.abs(r.score));
+  };
+  // Columns are decided over all of the model's results, so every table lines up.
+  const hasStderr = detail.results.some((r) => r.stderr !== null);
+  const hasRun = detail.results.some((r) => r.run_at !== null);
+  const hasFit = detail.results.some((r) => r.normalized !== null);
   return (
-    <Table.ScrollContainer minWidth={640}>
-      <Table striped highlightOnHover verticalSpacing={6}>
+    <Table.ScrollContainer minWidth={720}>
+      <Table
+        highlightOnHover
+        stickyHeader
+        verticalSpacing={8}
+        horizontalSpacing="md"
+        layout="fixed"
+        borderColor="var(--eci-card-border)"
+      >
         <Table.Thead>
           <Table.Tr>
-            <Table.Th>Benchmark</Table.Th>
-            <Table.Th>Version</Table.Th>
-            <Table.Th ta="right">Score</Table.Th>
-            <Table.Th ta="right">± stderr</Table.Th>
-            <Table.Th ta="right">For the fit</Table.Th>
-            <Table.Th>Run</Table.Th>
+            <Table.Th w="28%">Benchmark</Table.Th>
+            <Table.Th w="18%">Version</Table.Th>
+            <Table.Th ta="right" w={100}>
+              Score
+            </Table.Th>
+            {hasStderr && (
+              <Table.Th ta="right" w={96}>
+                ± stderr
+              </Table.Th>
+            )}
+            {hasFit && (
+              <Table.Th ta="right" w={104}>
+                Fit sees
+              </Table.Th>
+            )}
+            {hasRun && (
+              <Table.Th ta="right" w={124}>
+                Run on
+              </Table.Th>
+            )}
             <Table.Th>Evidence</Table.Th>
           </Table.Tr>
         </Table.Thead>
@@ -397,19 +565,29 @@ function ResultsTable({ results }: { results: BenchmarkResult[] }) {
           {results.map((r) => (
             <Table.Tr key={r.id}>
               <Table.Td>{r.benchmark}</Table.Td>
-              <Table.Td c="dimmed">{r.version}</Table.Td>
+              <Table.Td c="dimmed" title={r.version}>
+                {versionLabel(r.version, detail.versions, detail.name)}
+              </Table.Td>
               <Table.Td ta="right">
-                <HoverTip label={r.score_column}>
-                  <span>{score(r.score)}</span>
+                <HoverTip label={`Column: ${r.score_column}`}>
+                  <span className={classes.hint}>{formatScore(r.score, scale(r))}</span>
                 </HoverTip>
               </Table.Td>
-              <Table.Td ta="right" c="dimmed">
-                {r.stderr === null ? "—" : score(r.stderr)}
-              </Table.Td>
-              <Table.Td ta="right">
-                {r.normalized === null ? "—" : formatPercent(r.normalized)}
-              </Table.Td>
-              <Table.Td c="dimmed">{r.run_at ? formatDate(r.run_at) : "—"}</Table.Td>
+              {hasStderr && (
+                <Table.Td ta="right" c="dimmed">
+                  {r.stderr === null ? "" : formatScore(r.stderr, scale(r))}
+                </Table.Td>
+              )}
+              {hasFit && (
+                <Table.Td ta="right">
+                  {r.normalized === null ? "" : `${(r.normalized * 100).toFixed(1)}%`}
+                </Table.Td>
+              )}
+              {hasRun && (
+                <Table.Td ta="right" c="dimmed">
+                  {r.run_at ? formatDate(r.run_at) : ""}
+                </Table.Td>
+              )}
               <Table.Td>
                 {r.log_url ? (
                   <Anchor href={r.log_url} size="sm">
@@ -421,7 +599,7 @@ function ResultsTable({ results }: { results: BenchmarkResult[] }) {
                   </Anchor>
                 ) : (
                   <Text span size="sm" c="dimmed">
-                    {r.source ?? "—"}
+                    {r.source ?? ""}
                   </Text>
                 )}
               </Table.Td>
@@ -437,45 +615,42 @@ function Results({ detail }: { detail: ModelDetail }) {
   const { used, unused } = splitResults(detail.results);
   const unusedCount = unused.reduce((n, g) => n + g.results.length, 0);
   return (
-    <Stack gap="lg">
-      <Text size="sm" c="dimmed" className={classes.prose}>
-        Every result Epoch's data has for this model's versions: the raw score as published, its
-        standard error where measured, and the 0–100% score the fit sees after rescaling (random
-        guessing = 0%, the benchmark's ceiling = 100%). Hover a score for the column it comes from.
+    <Stack gap="xl">
+      <Text c="dimmed" className={classes.prose}>
+        Every result Epoch's data has for this model's versions: the raw score as published (hover
+        it for the column it comes from), its standard error where measured, and the 0–100% score
+        the fit sees after rescaling (random guessing = 0%, the benchmark's ceiling = 100%). Empty
+        columns are left out.
+      </Text>
+      <Text size="sm" c="dimmed" hiddenFrom="sm" className="chrome">
+        The tables scroll sideways for more columns →
       </Text>
       <div>
         <Title order={3} className={classes.subTitle}>
           Used in ECI ({used.length})
         </Title>
-        <ResultsTable results={used} />
+        <ResultsTable results={used} detail={detail} />
       </div>
       <div>
         <Title order={3} className={classes.subTitle}>
           Not used in ECI ({unusedCount})
         </Title>
         {unused.length === 0 ? (
-          <Text size="sm" c="dimmed">
-            Every result for this model went into the fit.
-          </Text>
+          <Text c="dimmed">Every result for this model went into the fit.</Text>
         ) : (
-          <Accordion
-            multiple
-            variant="separated"
-            radius="md"
-            defaultValue={unused[0] ? [unused[0].reason] : []}
-          >
+          <Accordion multiple variant="default" defaultValue={unused[0] ? [unused[0].reason] : []}>
             {unused.map((g) => (
               <Accordion.Item key={g.reason} value={g.reason}>
                 <Accordion.Control>
-                  <Text size="sm" fw={600}>
-                    {g.reason}{" "}
-                    <Text span c="dimmed" fw={400}>
+                  <Text fw={600}>
+                    {groupTitle(g.reason)}{" "}
+                    <Text span c="dimmed" fw={500} className="num">
                       ({g.results.length})
                     </Text>
                   </Text>
                 </Accordion.Control>
                 <Accordion.Panel>
-                  <ResultsTable results={g.results} />
+                  <ResultsTable results={g.results} detail={detail} />
                 </Accordion.Panel>
               </Accordion.Item>
             ))}
@@ -507,13 +682,13 @@ function Body({ row, slug, site }: { row: Row; slug: string; site: SiteData }) {
           <Facts row={row} detail={detail} site={site} />
         </Section>
       ) : (
-        <Grid gap="lg">
-          <Grid.Col span={{ base: 12, md: 7 }}>
+        <Grid gap="lg" align="stretch">
+          <Grid.Col span={{ base: 12, md: 6 }}>
             <Section title="Model facts">
               <Facts row={row} detail={detail} site={site} />
             </Section>
           </Grid.Col>
-          <Grid.Col span={{ base: 12, md: 5 }}>
+          <Grid.Col span={{ base: 12, md: 6 }}>
             <Section title="Score history">
               <History detail={detail} />
             </Section>
@@ -526,7 +701,7 @@ function Body({ row, slug, site }: { row: Row; slug: string; site: SiteData }) {
       <Section title={`Every result in the data (${detail.results.length})`}>
         <Results detail={detail} />
       </Section>
-      <Text size="sm" c="dimmed" className={classes.prose}>
+      <Text c="dimmed" className={classes.prose}>
         Benchmark data by <Anchor href={LINKS.epochData}>Epoch AI</Anchor>, licensed{" "}
         <Anchor href={LINKS.ccBy}>CC BY 4.0</Anchor>. Scores here come from this site's refit of
         snapshot {detail.snapshot}, not from Epoch AI.
@@ -571,7 +746,7 @@ export function ModelPage({
             {row.name}
           </Title>
           <Group gap={8}>
-            <Text c="dimmed" size="sm">
+            <Text c="dimmed">
               {row.lab} · released {formatDate(row.release_date)}
             </Text>
             <ModelBadges row={row} />

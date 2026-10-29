@@ -16,6 +16,8 @@ import {
   Progress,
   RangeSlider,
   SegmentedControl,
+  Spoiler,
+  Switch,
   TextInput,
   Tooltip,
 } from "@mantine/core";
@@ -34,18 +36,29 @@ export const theme = createTheme({
   cursorType: "pointer",
   components: {
     // Links take the size of the text around them.
-    Anchor: Anchor.extend({ defaultProps: { inherit: true } }),
-    Badge: Badge.extend({ defaultProps: { radius: "xl" }, classNames: { root: chrome } }),
+    // Links are underlined, so small ones stand out from text by more than their colour.
+    Anchor: Anchor.extend({ defaultProps: { inherit: true, underline: "always" } }),
+    // One badge look everywhere: sentence case, a light fill and a matching hairline border.
+    Badge: Badge.extend({
+      defaultProps: { radius: "xl", variant: "light", tt: "none", fw: 600 },
+      classNames: { root: chrome },
+      styles: {
+        root: { border: "1px solid color-mix(in srgb, currentColor 40%, transparent)" },
+      },
+    }),
     Button: Button.extend({ defaultProps: { radius: "xl" } }),
     Chip: Chip.extend({ defaultProps: { radius: "xl" } }),
     ActionIcon: ActionIcon.extend({ defaultProps: { radius: "xl" } }),
     Tooltip: Tooltip.extend({ defaultProps: { withArrow: true }, classNames: { tooltip: chrome } }),
     TextInput: TextInput.extend({ defaultProps: { radius: "xl" } }),
     MultiSelect: MultiSelect.extend({ defaultProps: { radius: "xl" } }),
+    // The selected item is filled in the primary colour, readable on light and dark tracks.
     SegmentedControl: SegmentedControl.extend({
-      defaultProps: { radius: "xl" },
+      defaultProps: { radius: "xl", color: "violet", withItemsBorders: false },
       classNames: { root: chrome },
     }),
+    Switch: Switch.extend({ classNames: { root: chrome } }),
+    Spoiler: Spoiler.extend({ classNames: { control: chrome } }),
     Pill: Pill.extend({ classNames: { root: chrome } }),
     // Typing and selecting inside a field still works: an editable element's
     // `user-select: auto` computes to `contain`. The field just stays out of page selections.
@@ -62,23 +75,40 @@ export const cssVariablesResolver: CSSVariablesResolver = () => ({
     "--drawer-size-sheet": "auto",
   },
   light: {
-    "--mantine-color-body": "#f4f4f7",
-    "--mantine-color-dimmed": "#515364",
-    "--mantine-color-placeholder": "var(--mantine-color-gray-6)",
+    "--mantine-color-body": "#f2f2f6",
+    "--mantine-color-dimmed": "#4b4d5c",
+    "--mantine-color-placeholder": "#6b6e7d",
+    "--mantine-color-default-border": "#d4d5de",
     "--eci-surface": "#ffffff",
     "--eci-hero-surface": "#ffffff",
+    "--eci-card-border": "#d4d5de",
     "--eci-page-dots": "rgb(15 23 42 / 7%)",
-    "--eci-capsule-opacity": "0.45",
+    "--eci-grid": "#e1e2ea",
+    "--eci-axis": "#b9bbc8",
+    "--eci-capsule-opacity": "0.32",
     "--eci-dot-ring": "#ffffff",
+    "--eci-tie-band": "#f1effa",
+    "--eci-tie-accent": "var(--mantine-color-violet-6)",
+    "--eci-tie-text": "var(--mantine-color-violet-8)",
+    "--eci-tie-chip": "#e4defa",
+    "--eci-glow": "rgb(139 92 246 / 22%)",
   },
   dark: {
     "--mantine-color-body": "#0a0b0e",
     "--mantine-color-dimmed": "#bcbecb",
-    "--mantine-color-placeholder": "var(--mantine-color-dark-1)",
+    "--mantine-color-placeholder": "#9a9cab",
     "--eci-surface": "#121317",
     "--eci-hero-surface": "#15161b",
+    "--eci-card-border": "#2c2e36",
     "--eci-page-dots": "rgb(255 255 255 / 6%)",
-    "--eci-capsule-opacity": "0.72",
+    "--eci-grid": "#25272f",
+    "--eci-axis": "#41434e",
+    "--eci-capsule-opacity": "0.4",
     "--eci-dot-ring": "#f8fafc",
+    "--eci-tie-band": "#1d1b2b",
+    "--eci-tie-accent": "var(--mantine-color-violet-4)",
+    "--eci-tie-text": "var(--mantine-color-violet-2)",
+    "--eci-tie-chip": "#352c5c",
+    "--eci-glow": "rgb(139 92 246 / 30%)",
   },
 });

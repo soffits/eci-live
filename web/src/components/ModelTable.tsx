@@ -1,14 +1,16 @@
 import { Badge, Group, Progress, Stack, Text, TextInput, Tooltip } from "@mantine/core";
+import { useMediaQuery } from "@mantine/hooks";
 import { DataTable, type DataTableSortStatus } from "mantine-datatable";
 import { useMemo, useState } from "react";
 import { TABLE_PAGE_SIZE, WEIGHTS } from "../config";
 import type { Row } from "../data";
-import { formatDate, formatRange } from "../format";
+import { formatDate, formatRange, noInterval } from "../format";
 import { LabLogo, useLabColor } from "./LabLogo";
-import { NewMark, PreviewMark } from "./ModelBadges";
+import { MarkDots, MarkDotsKey, NewMark, PreviewMark } from "./ModelBadges";
 import { ModelLink } from "./ModelLink";
+import classes from "./ModelTable.module.css";
 
-type SortKey = "rank" | "name" | "lab" | "released" | "eci" | "benchmarks" | "delta";
+type SortKey = "rank" | "name" | "lab" | "released" | "eci" | "benchmarks" | "delta" | "weights";
 
 function compare(a: Row, b: Row, key: SortKey): number {
   const x = a[key];
@@ -22,13 +24,13 @@ function compare(a: Row, b: Row, key: SortKey): number {
 function Delta({ value }: { value: number | null }) {
   if (value === null || Math.abs(value) < 0.05) {
     return (
-      <Text size="xs" c="dimmed">
-        {value === null ? "new" : "0.0"}
+      <Text size="sm" c="dimmed">
+        {value === null ? "new" : "–"}
       </Text>
     );
   }
   return (
-    <Text size="xs" fw={600} c={value > 0 ? "teal" : "red"} className="num">
+    <Text size="sm" fw={600} c={value > 0 ? "teal" : "red"} className="num">
       {value > 0 ? "+" : ""}
       {value.toFixed(1)}
     </Text>
@@ -42,27 +44,44 @@ function CiCapsule({ row, scale }: { row: Row; scale: (v: number) => number }) {
   const low = scale(row.ci_low ?? row.eci);
   const mid = scale(row.eci);
   const high = scale(row.ci_high ?? row.eci);
-  const tick = 2.5;
+  const tick = 3;
   return (
-    <Progress.Root size={10} w={120} radius="xl" aria-hidden>
+    <Progress.Root size={12} w={120} radius="xl" bg="var(--eci-grid)" aria-hidden>
       <Progress.Section value={low} color="transparent" />
-      <Progress.Section
-        value={Math.max(mid - tick / 2 - low, 0)}
-        color={color}
-        opacity="var(--eci-capsule-opacity)"
-      />
-      <Progress.Section value={tick} color={color} />
-      <Progress.Section
-        value={Math.max(high - mid - tick / 2, 0)}
-        color={color}
-        opacity="var(--eci-capsule-opacity)"
-      />
+      <Progress.Section value={Math.max(mid - tick / 2 - low, 0)} color={color} opacity={0.55} />
+      <Progress.Section value={tick} color="var(--mantine-color-text)" />
+      <Progress.Section value={Math.max(high - mid - tick / 2, 0)} color={color} opacity={0.55} />
     </Progress.Root>
   );
 }
 
+function SortIcon({ path }: { path: string }) {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="var(--mantine-color-dimmed)"
+      strokeWidth="2.2"
+      aria-hidden
+    >
+      <path d={path} />
+    </svg>
+  );
+}
+
 /** Every scored model: searchable, sortable, paginated. */
-export function ModelTable({ rows, hasPrevious }: { rows: Row[]; hasPrevious: boolean }) {
+export function ModelTable({
+  rows,
+  hasPrevious,
+  intervals = true,
+}: {
+  rows: Row[];
+  hasPrevious: boolean;
+  intervals?: boolean;
+}) {
+  const narrow = useMediaQuery("(max-width: 48em)") ?? false;
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
   const [sort, setSort] = useState<DataTableSortStatus<Row>>({
@@ -83,16 +102,34 @@ export function ModelTable({ rows, hasPrevious }: { rows: Row[]; hasPrevious: bo
   const current = Math.min(page, lastPage);
   const records = sorted.slice((current - 1) * TABLE_PAGE_SIZE, current * TABLE_PAGE_SIZE);
 
-  // One scale per page, so intervals stay readable and comparable within what is shown.
+  // One scale per page, so intervals stay readable and comparable within what is shown; a
+  // little room at both ends so no bar looks clamped.
   const lows = records.map((r) => r.ci_low ?? r.eci);
   const highs = records.map((r) => r.ci_high ?? r.eci);
-  const min = Math.min(...lows);
-  const span = Math.max(...highs) - min || 1;
-  const scale = (v: number) => ((v - min) / span) * 100;
+  const pad = (Math.max(...highs) - Math.min(...lows)) * 0.04 || 1;
+  const min = Math.min(...lows) - pad;
+  const max = Math.max(...highs) + pad;
+  const scale = (v: number) => ((v - min) / (max - min)) * 100;
 
   return (
     <Stack gap="sm">
       <TextInput
+        leftSection={
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            aria-hidden
+          >
+            <circle cx="11" cy="11" r="7" />
+            <path d="m20 20-3.5-3.5" />
+          </svg>
+        }
+        size={narrow ? "md" : "sm"}
+        maw={narrow ? undefined : 420}
         placeholder="Search models or labs"
         value={query}
         onChange={(e) => {
@@ -101,14 +138,27 @@ export function ModelTable({ rows, hasPrevious }: { rows: Row[]; hasPrevious: bo
         }}
         aria-label="Search models or labs"
       />
+      {narrow && (
+        <div className={`${classes.key} chrome`}>
+          <MarkDotsKey />
+        </div>
+      )}
       <DataTable
         records={records}
         idAccessor="name"
         highlightOnHover
-        classNames={{ pagination: "chrome" }}
-        verticalSpacing={8}
+        withTableBorder
+        borderRadius="md"
+        classNames={{ pagination: `chrome ${classes.pagination}` }}
+        maxHeight={narrow ? undefined : "78vh"}
+        verticalSpacing={narrow ? 10 : 8}
+        horizontalSpacing={narrow ? 6 : "sm"}
         verticalAlign="center"
         sortStatus={sort}
+        sortIcons={{
+          sorted: <SortIcon path="M7 14l5-5 5 5" />,
+          unsorted: <SortIcon path="M8 9l4-4 4 4M8 15l4 4 4-4" />,
+        }}
         onSortStatusChange={(s) => {
           setSort(s);
           setPage(1);
@@ -126,8 +176,8 @@ export function ModelTable({ rows, hasPrevious }: { rows: Row[]; hasPrevious: bo
             accessor: "rank",
             title: "#",
             sortable: true,
-            width: 56,
             textAlign: "right",
+            noWrap: true,
             render: (r) => (
               <Tooltip
                 label={
@@ -146,24 +196,36 @@ export function ModelTable({ rows, hasPrevious }: { rows: Row[]; hasPrevious: bo
             accessor: "name",
             title: "Model",
             sortable: true,
+            noWrap: !narrow,
             render: (r) => (
-              <Group gap={8} wrap="nowrap" align="flex-start">
+              <Group gap={8} wrap="nowrap">
                 <LabLogo lab={r.lab} />
-                <Group gap="2px 6px">
-                  <Text size="sm" fw={600}>
-                    <ModelLink name={r.name} />
-                  </Text>
-                  {r.isNew && <NewMark />}
-                  {!r.onEpoch && <PreviewMark row={r} compact />}
-                </Group>
+                <Text size="sm" fw={600} className={narrow ? undefined : classes.name}>
+                  <ModelLink name={r.name} />
+                </Text>
+                {narrow ? (
+                  <MarkDots row={r} />
+                ) : (
+                  <>
+                    {r.isNew && <NewMark />}
+                    {!r.onEpoch && <PreviewMark row={r} compact />}
+                  </>
+                )}
               </Group>
             ),
           },
-          { accessor: "lab", title: "Lab", sortable: true, visibleMediaQuery: "(min-width: 62em)" },
+          {
+            accessor: "lab",
+            title: "Lab",
+            sortable: true,
+            noWrap: true,
+            visibleMediaQuery: "(min-width: 62em)",
+          },
           {
             accessor: "released",
             title: "Released",
             sortable: true,
+            noWrap: true,
             visibleMediaQuery: "(min-width: 48em)",
             render: (r) => formatDate(r.released),
           },
@@ -180,14 +242,16 @@ export function ModelTable({ rows, hasPrevious }: { rows: Row[]; hasPrevious: bo
           },
           {
             accessor: "ci",
-            title: "90% CI",
-            visibleMediaQuery: "(min-width: 36em)",
+            title: intervals ? `90% CI (${min.toFixed(0)}–${max.toFixed(0)} scale)` : "Interval",
+            noWrap: true,
+            hidden: !intervals,
+            visibleMediaQuery: "(min-width: 48em)",
             render: (r) => (
               <Group gap={10} wrap="nowrap">
                 <CiCapsule row={r} scale={scale} />
-                <Text size="xs" c="dimmed" className="num" style={{ whiteSpace: "nowrap" }}>
+                <Text size="sm" c="dimmed" className="num">
                   {r.ci_low === null || r.ci_high === null
-                    ? "anchor"
+                    ? noInterval(r)
                     : `${r.ci_low.toFixed(1)}–${r.ci_high.toFixed(1)}`}
                 </Text>
               </Group>
@@ -199,6 +263,7 @@ export function ModelTable({ rows, hasPrevious }: { rows: Row[]; hasPrevious: bo
             sortable: true,
             textAlign: "right",
             hidden: !hasPrevious,
+            noWrap: true,
             render: (r) => <Delta value={r.delta} />,
           },
           {
@@ -206,20 +271,21 @@ export function ModelTable({ rows, hasPrevious }: { rows: Row[]; hasPrevious: bo
             title: "Benchmarks",
             sortable: true,
             textAlign: "right",
+            noWrap: true,
             visibleMediaQuery: "(min-width: 62em)",
             render: (r) => <span className="num">{r.benchmarks}</span>,
           },
           {
             accessor: "weights",
             title: "Weights",
+            sortable: true,
+            // The last column takes the spare width, so the others hug their content.
+            width: "100%",
+            noWrap: true,
             visibleMediaQuery: "(min-width: 48em)",
             render: (r) => (
               <Tooltip label={r.accessibility ?? "Access not recorded by Epoch"}>
-                <Badge
-                  size="sm"
-                  variant={WEIGHTS[r.weights].variant}
-                  color={WEIGHTS[r.weights].color}
-                >
+                <Badge size="sm" color={WEIGHTS[r.weights].color}>
                   {r.weights === "unknown"
                     ? (r.accessibility ?? "Unknown")
                     : WEIGHTS[r.weights].label}

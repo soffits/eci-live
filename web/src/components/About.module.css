@@ -6,16 +6,25 @@
   padding: var(--mantine-spacing-lg);
   border: 1px solid var(--mantine-color-default-border);
   border-radius: var(--mantine-radius-lg);
-  background: var(--mantine-color-default);
+  background: var(--eci-surface);
 }
 
 .fact {
   min-width: 0;
 }
 
+.code {
+  font-size: var(--mantine-font-size-sm);
+  border: 1px solid var(--eci-card-border);
+}
+
+.keep {
+  white-space: nowrap;
+}
+
 .label {
-  margin-bottom: 2px;
-  font-size: 11px;
+  margin-bottom: 4px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;

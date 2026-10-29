@@ -19,16 +19,74 @@ export interface ModelScore {
   official_eci: number | null;
 }
 
+/** An index benchmark and the domain tags Epoch's benchmark hub gives it. */
+export interface DomainBenchmark {
+  benchmark: string;
+  hub_id: string | null;
+  domains: string[];
+  percentage: boolean;
+  listed: boolean;
+}
+
+export interface DomainScore {
+  name: string;
+  eci: number;
+  ci_low: number | null;
+  ci_high: number | null;
+  benchmarks: number;
+}
+
+export interface Preset {
+  id: string;
+  label: string;
+  domain: string;
+  benchmarks: string[];
+  scores: DomainScore[];
+}
+
+export interface InputInfo {
+  url: string;
+  sha256: string;
+  fetched_at: string;
+  last_modified: string | null;
+  archive_url: string | null;
+}
+
+export interface Domains {
+  hub_page: string;
+  hub_module: InputInfo;
+  resamples_per_draw: number;
+  seed: number;
+  benchmarks: DomainBenchmark[];
+  presets: Preset[];
+}
+
+export interface CyberModel {
+  name: string;
+  general_name: string | null;
+  lab: string;
+  release_date: string | null;
+  accessibility: string | null;
+  weights: Weights;
+  country: string | null;
+  eci: number;
+  ci_low: number | null;
+  ci_high: number | null;
+  benchmarks: number;
+}
+
+/** Epoch's own published Cyber ECI, shown as Epoch's numbers. */
+export interface Cyber {
+  scores: InputInfo;
+  results: InputInfo;
+  benchmarks: string[];
+  models: CyberModel[];
+}
+
 export interface Snapshot {
   schema: number;
   id: string;
-  input: {
-    url: string;
-    sha256: string;
-    fetched_at: string;
-    last_modified: string | null;
-    archive_url: string | null;
-  };
+  input: InputInfo;
   fit: {
     eci_public_commit: string;
     bootstrap_samples: number;
@@ -40,6 +98,9 @@ export interface Snapshot {
   build: { commit: string | null; run_url: string | null };
   drift: { shared_models: number; max_abs: number; mean_abs: number; tolerance: number };
   models: ModelScore[];
+  /** Absent on snapshots from before domain ECIs, or when the hub couldn't be read. */
+  domains?: Domains;
+  cyber?: Cyber;
 }
 
 export interface SiteData {
@@ -108,8 +169,29 @@ export interface ModelDetail {
   results: BenchmarkResult[];
 }
 
+// fit.json (src/eci_live/schema.py, FitData).
+
+export interface FitBenchmark {
+  name: string;
+  edi: number;
+  slope: number;
+  domains: string[];
+}
+
+export interface FitData {
+  snapshot: string;
+  benchmarks: FitBenchmark[];
+  models: { name: string; country: string | null; training_compute_flop: number | null }[];
+  /** [model index, benchmark index, 0-1 score]: the fit's input. */
+  results: [number, number, number][];
+}
+
 /** A model as the page shows it: the published score plus derived flags. */
 export interface Row extends ModelScore {
+  /** The general ECI, also when `eci` holds a domain or custom score. */
+  general_eci: number | null;
+  country: string | null;
+  training_compute_flop: number | null;
   rank: number;
   released: number | null;
   isNew: boolean;
@@ -121,13 +203,17 @@ export interface Row extends ModelScore {
 
 const DAY_MS = 86_400_000;
 
-export function toRows(data: SiteData, newWithinDays: number): Row[] {
+export function toRows(data: SiteData, newWithinDays: number, fit?: FitData | null): Row[] {
   const asOf = Date.parse(data.latest.input.fetched_at);
+  const facts = new Map(fit?.snapshot === data.latest.id ? fit.models.map((m) => [m.name, m]) : []);
   return data.latest.models.map((m, i) => {
     const released = m.release_date ? Date.parse(m.release_date) : null;
     const previous = data.previous_eci[m.name];
     return {
       ...m,
+      general_eci: m.eci,
+      country: facts.get(m.name)?.country ?? null,
+      training_compute_flop: facts.get(m.name)?.training_compute_flop ?? null,
       rank: i + 1,
       released,
       isNew: released !== null && asOf - released <= newWithinDays * DAY_MS,
@@ -142,6 +228,12 @@ export async function loadDetail(slug: string): Promise<ModelDetail> {
   const response = await fetch(`${import.meta.env.BASE_URL}models/${slug}.json`);
   if (!response.ok) throw new Error(`models/${slug}.json: HTTP ${response.status}`);
   return response.json();
+}
+
+/** The explore views' data; null if it is missing, so the rest of the page still works. */
+export async function loadFitData(): Promise<FitData | null> {
+  const response = await fetch(`${import.meta.env.BASE_URL}fit.json`);
+  return response.ok ? response.json() : null;
 }
 
 export async function loadSiteData(): Promise<SiteData> {

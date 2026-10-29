@@ -12,7 +12,7 @@
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  color: white;
+  color: var(--eci-surface);
   font-weight: 700;
   line-height: 1;
 }

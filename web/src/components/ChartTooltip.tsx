@@ -30,7 +30,7 @@ export function ChartTooltip({
           <Text span fw={800} className="num">
             {row.eci.toFixed(1)}
           </Text>{" "}
-          ECI{" "}
+          {row.general_eci === row.eci ? "ECI" : "in this selection"}{" "}
           <Text span c="dimmed" size="xs">
             {formatCi(row)}
           </Text>
@@ -41,10 +41,17 @@ export function ChartTooltip({
             {row.p_first ? ` · #1 in ${formatPercent(row.p_first)} of refits` : ""}
           </Text>
         )}
-        <Text size="xs" c="dimmed">
-          {row.benchmarks} benchmarks · Epoch:{" "}
-          {row.official_eci === null ? "not published yet" : row.official_eci.toFixed(1)}
-        </Text>
+        {row.general_eci === row.eci ? (
+          <Text size="xs" c="dimmed">
+            {row.benchmarks} benchmarks · Epoch:{" "}
+            {row.official_eci === null ? "not published yet" : row.official_eci.toFixed(1)}
+          </Text>
+        ) : (
+          <Text size="xs" c="dimmed">
+            {row.benchmarks} benchmarks in this selection · general ECI{" "}
+            {row.general_eci === null ? "none" : row.general_eci.toFixed(1)}
+          </Text>
+        )}
         <ModelBadges row={row} />
         <Text size="xs" c="dimmed" fs="italic">
           Click for its detail page

@@ -3,10 +3,24 @@
 import argparse
 import sys
 from pathlib import Path
+from urllib.error import URLError
 
-from eci_live import detail, history, provenance, refit, settings, source
+from eci import download_benchmark_data, load_benchmark_metadata
+
+from eci_live import (
+    cyber,
+    detail,
+    domain,
+    fitdata,
+    history,
+    hub,
+    provenance,
+    refit,
+    settings,
+    source,
+)
 from eci_live.drift import DriftError, check_drift
-from eci_live.schema import FitInfo, InputInfo, Snapshot
+from eci_live.schema import Cyber, Domains, FitInfo, InputInfo, Preset, Snapshot
 
 
 def _parse_args(argv: list[str] | None) -> argparse.Namespace:
@@ -28,6 +42,12 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
         help="where the per-model detail JSON files are written",
     )
     parser.add_argument(
+        "--fit-json",
+        type=Path,
+        default=Path("web/public/fit.json"),
+        help="where the benchmark parameters and fit input for the explore views are written",
+    )
+    parser.add_argument(
         "--work-dir", type=Path, default=Path("build"), help="where the downloaded zip is kept"
     )
     parser.add_argument(
@@ -39,8 +59,62 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
+def _warn(title: str, error: Exception) -> None:
+    print(f"::warning title={title}::{error}", file=sys.stderr)
+
+
+def _domains(result: refit.Fit, zip_path: Path, snap_id: str, work_dir: Path) -> Domains | None:
+    """Software engineering and Math ECIs from the hub's domain tags; None (with a warning)
+    if the hub can't be read, so the general index still publishes."""
+    try:
+        module, entries = hub.fetch(settings.HUB_PAGE_URL, work_dir / settings.HUB_ASSET)
+    except (hub.HubError, URLError, OSError) as error:
+        _warn("Domain tags unavailable; publishing without domain ECIs", error)
+        return None
+    module["archive_url"] = provenance.archive_url(snap_id, settings.HUB_ASSET)
+    metadata = load_benchmark_metadata(download_benchmark_data(zip_path))
+    tagged = hub.match(entries, list(result.edi["benchmark"]), metadata)
+    presets = []
+    for i, (preset_id, label, tag) in enumerate(settings.DOMAIN_PRESETS):
+        chosen = hub.in_domain(tagged, tag)
+        presets.append(
+            Preset(
+                id=preset_id,
+                label=label,
+                domain=tag,
+                benchmarks=chosen,
+                scores=domain.scores(
+                    result, chosen, domain.domain_seed(i), settings.DOMAIN_RESAMPLES
+                ),
+            )
+        )
+    return Domains(
+        hub_page=settings.HUB_PAGE_URL,
+        hub_module=module,
+        resamples_per_draw=settings.DOMAIN_RESAMPLES,
+        seed=settings.BOOTSTRAP_SEED,
+        benchmarks=tagged,
+        presets=presets,
+    )
+
+
+def _cyber(snap_id: str, work_dir: Path) -> Cyber | None:
+    try:
+        published = cyber.fetch(work_dir)
+    except (URLError, OSError, KeyError, ValueError) as error:
+        _warn("Epoch's Cyber ECI unavailable; publishing without it", error)
+        return None
+    published["scores"]["archive_url"] = provenance.archive_url(
+        snap_id, settings.CYBER_SCORES_ASSET
+    )
+    published["results"]["archive_url"] = provenance.archive_url(
+        snap_id, settings.CYBER_RESULTS_ASSET
+    )
+    return published
+
+
 def _new_snapshot(
-    zip_path: Path, info: InputInfo, bootstrap_samples: int
+    zip_path: Path, info: InputInfo, bootstrap_samples: int, work_dir: Path
 ) -> tuple[Snapshot, refit.Fit]:
     result = refit.fit(zip_path, bootstrap_samples)
     official = refit.official_scores(zip_path)
@@ -64,6 +138,10 @@ def _new_snapshot(
         drift=drift,
         models=models,
     )
+    if (domains := _domains(result, zip_path, snap_id, work_dir)) is not None:
+        snapshot["domains"] = domains
+    if (published := _cyber(snap_id, work_dir)) is not None:
+        snapshot["cyber"] = published
     return snapshot, result
 
 
@@ -77,6 +155,13 @@ def _summary(snap: Snapshot) -> str:
             f"- {len(snap['models'])} models; {drift['shared_models']} shared with Epoch, "
             f"max drift {drift['max_abs']} (tolerance {drift['tolerance']})",
             f"- not yet on Epoch: {', '.join(unpublished) or 'none'}",
+            *[
+                f"- {p['label']}: {len(p['benchmarks'])} benchmarks, {len(p['scores'])} models"
+                for p in snap.get("domains", {}).get("presets", [])
+            ],
+            f"- Epoch's Cyber ECI: {len(snap['cyber']['models'])} models"
+            if "cyber" in snap
+            else "- Epoch's Cyber ECI: unavailable",
         ]
     )
 
@@ -111,7 +196,7 @@ def main(argv: list[str] | None = None) -> int:
         print("input unchanged since an earlier snapshot; nothing new to record")
     else:
         try:
-            snap, fitted = _new_snapshot(zip_path, info, args.bootstrap_samples)
+            snap, fitted = _new_snapshot(zip_path, info, args.bootstrap_samples, args.work_dir)
         except DriftError as error:
             print(f"::error title=Refit drifted from Epoch's scores::{error}", file=sys.stderr)
             return 1
@@ -130,7 +215,9 @@ def main(argv: list[str] | None = None) -> int:
     try:
         # The fit runs once per job: a new snapshot's fit is reused; otherwise only the
         # deterministic central fit runs, to rebuild the latest snapshot's details.
-        details = detail.build(latest_zip, snapshots, fitted if latest_zip == zip_path else None)
+        result = fitted if fitted is not None and latest_zip == zip_path else None
+        result = result or refit.fit(latest_zip, bootstrap_samples=0)
+        details = detail.build(latest_zip, snapshots, result)
     except detail.ReproduceError as error:
         print(
             f"::error title=Detail refit does not reproduce the snapshot::{error}", file=sys.stderr
@@ -138,6 +225,8 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     count = detail.write(details, site["slugs"], args.details_dir)
     print(f"wrote {count} model pages to {args.details_dir}")
+    args.fit_json.write_text(fitdata.dump(fitdata.build(result, snapshots[-1], details)))
+    print(f"wrote {args.fit_json}")
     return 0
 
 

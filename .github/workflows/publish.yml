@@ -45,7 +45,9 @@ jobs:
 
       - name: Refuse to publish numbers without full provenance
         run: |
-          jq -e '.latest.build.run_url and .latest.build.commit and .latest.input.archive_url' \
+          jq -e '.latest.build.run_url and .latest.build.commit and .latest.input.archive_url
+            and ((.latest.domains | not) or .latest.domains.hub_module.archive_url)
+            and ((.latest.cyber | not) or .latest.cyber.scores.archive_url)' \
             web/public/eci.json > /dev/null
 
       - uses: actions/setup-node@v7
@@ -73,10 +75,16 @@ jobs:
             commit --quiet --message "data: snapshot $SNAPSHOT"
           gh auth setup-git
           git -C history push origin HEAD:refs/heads/data
-          gh release create "snapshot-$SNAPSHOT" build/benchmark_data.zip \
+          # The zip, plus the hub's benchmark registry (domain tags) and Epoch's Cyber ECI
+          # files when this run could fetch them.
+          assets=(build/benchmark_data.zip)
+          for f in build/epoch_benchmark_hub.js build/cyber_eci_scores.csv build/cyber_processed_data_for_eci.csv; do
+            if [ -f "$f" ]; then assets+=("$f"); fi
+          done
+          gh release create "snapshot-$SNAPSHOT" "${assets[@]}" \
             --target data \
             --title "Snapshot $SNAPSHOT" \
-            --notes "Input zip (Epoch AI, CC BY 4.0) for ECI snapshot $SNAPSHOT, produced by $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID."
+            --notes "Inputs (Epoch AI, CC BY 4.0) for ECI snapshot $SNAPSHOT, produced by $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID."
 
       - name: Upload site
         if: steps.refit.outputs.snapshot != '' || github.event_name != 'schedule'

@@ -32,12 +32,12 @@ def build_info() -> BuildInfo:
     return BuildInfo(commit=commit, run_url=run_url)
 
 
-def archive_url(snapshot_id: str) -> str | None:
-    """Release asset the CI run attaches the input zip to (None outside CI)."""
+def archive_url(snapshot_id: str, asset: str = settings.ARCHIVE_ASSET) -> str | None:
+    """Release asset the CI run attaches an input to (None outside CI)."""
     server, repo = _github("SERVER_URL"), _github("REPOSITORY")
     if not (server and repo):
         return None
-    return f"{server}/{repo}/releases/download/snapshot-{snapshot_id}/{settings.ARCHIVE_ASSET}"
+    return f"{server}/{repo}/releases/download/snapshot-{snapshot_id}/{asset}"
 
 
 def write_output(name: str, value: str) -> None:

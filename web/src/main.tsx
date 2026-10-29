@@ -8,7 +8,7 @@ import { NuqsAdapter } from "nuqs/adapters/react";
 import { StrictMode, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
-import { loadSiteData } from "./data";
+import { loadFitData, loadSiteData } from "./data";
 import { cssVariablesResolver, theme } from "./theme";
 
 const root = document.getElementById("root");
@@ -29,7 +29,7 @@ createRoot(root).render(
         }
       >
         <NuqsAdapter>
-          <App data={loadSiteData()} />
+          <App data={loadSiteData()} fitData={loadFitData()} />
         </NuqsAdapter>
       </Suspense>
     </MantineProvider>

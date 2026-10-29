@@ -22,7 +22,13 @@ export function ModelLink({
 }: AnchorProps & { name: string; children?: ReactNode; title?: string; className?: string }) {
   const { hrefOf, open } = useModelNav();
   const href = hrefOf(name);
-  if (href === null) return <>{children ?? name}</>;
+  if (href === null) {
+    return (
+      <span className={props.className} title={props.title}>
+        {children ?? name}
+      </span>
+    );
+  }
   const onClick = (e: MouseEvent<HTMLAnchorElement>) => {
     if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
     e.preventDefault();

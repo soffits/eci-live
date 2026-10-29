@@ -31,6 +31,11 @@ class Fit:
     edi: pd.DataFrame  # central benchmark difficulty and slope (eci-public's `edi_df`)
     draws: np.ndarray | None  # bootstrap ECIs, one row per refit, columns in `names` order
     names: list[str]
+    # Bootstrap benchmark difficulty and slope (ECI scale), one row per refit, columns in
+    # `benchmarks` order; the domain ECIs' intervals start from these.
+    edi_draws: np.ndarray | None = None
+    slope_draws: np.ndarray | None = None
+    benchmarks: tuple[str, ...] = ()
 
 
 def chunk_sizes(samples: int, chunks: int) -> list[int]:
@@ -98,7 +103,12 @@ def fit(zip_path: Path, bootstrap_samples: int, workers: int | None = None) -> F
     eci_df, edi_df, first = parts[0]
     central = eci_df.set_index("Model")["eci"]
     for other, _, draws in parts[1:]:
-        if draws["model_names"] != first["model_names"] or not np.allclose(
+        if (
+            draws["model_names"] != first["model_names"]
+            or draws["benchmark_names"] != first["benchmark_names"]
+        ):
+            raise RuntimeError("bootstrap chunks disagree on the fit's models or benchmarks")
+        if not np.allclose(
             other.set_index("Model")["eci"].reindex(central.index), central, rtol=0, atol=1e-9
         ):
             raise RuntimeError("bootstrap chunks disagree on the central fit")
@@ -108,6 +118,9 @@ def fit(zip_path: Path, bootstrap_samples: int, workers: int | None = None) -> F
         edi=edi_df,
         draws=np.concatenate([draws["eci"] for _, _, draws in parts]),
         names=list(first["model_names"]),
+        edi_draws=np.concatenate([draws["edi"] for _, _, draws in parts]),
+        slope_draws=np.concatenate([draws["slope"] for _, _, draws in parts]),
+        benchmarks=tuple(first["benchmark_names"]),
     )
 
 
