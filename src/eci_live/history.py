@@ -72,8 +72,13 @@ def site_data(snapshots: list[Snapshot]) -> SiteData:
         for model in snap["models"]:
             first_seen.setdefault(model["version"], snap["input"]["fetched_at"])
     previous = scored[-2]["models"] if len(scored) > 1 else []
+    latest = scored[-1]
+    versions = [m["version"] for m in latest["models"]]
+    folded = {v: top for v, top in latest["folded"].items() if top in versions}
+    # Folded versions after the published ones, so the published slugs don't move.
+    every = slugs([*versions, *folded])
     return SiteData(
-        latest=scored[-1],
+        latest=latest,
         snapshots=[
             SnapshotRef(
                 id=s["id"], fetched_at=s["input"]["fetched_at"], sha256=s["input"]["sha256"]
@@ -82,5 +87,6 @@ def site_data(snapshots: list[Snapshot]) -> SiteData:
         ],
         previous_eci={m["version"]: m["eci"] for m in previous},
         first_seen=first_seen,
-        slugs=slugs([m["version"] for m in scored[-1]["models"]]),
+        slugs={v: every[v] for v in versions},
+        redirects={every[v]: every[top] for v, top in folded.items()},
     )

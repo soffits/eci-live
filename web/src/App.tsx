@@ -26,7 +26,7 @@ import {
   useQueryState,
   useQueryStates,
 } from "nuqs";
-import { type ReactNode, use, useMemo, useState } from "react";
+import { type ReactNode, use, useEffect, useMemo, useState } from "react";
 import classes from "./App.module.css";
 import { COLOR_BY, type ColorBy, groupColor, groupKey } from "./colors";
 import { About } from "./components/About";
@@ -225,6 +225,12 @@ export function App({
     });
 
   const [slug, setSlug] = useQueryState("m", detailParam);
+  // An unrecorded-thinking version folded into its model's top variant has no page of its
+  // own any more; an old link to it lands on the top variant's page.
+  const redirect = slug === null ? undefined : site.redirects[slug];
+  useEffect(() => {
+    if (redirect) void setSlug(redirect, { history: "replace" });
+  }, [redirect, setSlug]);
   const versionOfSlug = useMemo(
     () => new Map(Object.entries(site.slugs).map(([version, s]) => [s, version])),
     [site.slugs],

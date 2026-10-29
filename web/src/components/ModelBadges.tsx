@@ -114,11 +114,43 @@ export function VariantsMenu({
   );
 }
 
+/** Marks a result taken from a run at an unrecorded thinking setting (`version`). */
+export function BorrowedTag({ version }: { version: string }) {
+  return (
+    <Tooltip
+      label={`Run as ${version}, at an unrecorded thinking setting (usually the provider's default). It fills a benchmark this variant has no result of its own for.`}
+      multiline
+      w={280}
+    >
+      <Badge size="xs" color="violet" variant="light" flex="none">
+        borrowed
+      </Badge>
+    </Tooltip>
+  );
+}
+
+/** Marks a variant whose score includes borrowed results, with how many. */
+export function BorrowedMark({ row }: { row: Pick<Row, "borrowed" | "group"> }) {
+  if (row.borrowed === 0) return null;
+  return (
+    <Tooltip
+      label={`${row.borrowed} of the benchmarks behind its general ECI come from ${row.group} runs at an unrecorded thinking setting, where this variant has no result of its own.`}
+      multiline
+      w={280}
+    >
+      <Badge size="sm" color="violet" variant="light" flex="none">
+        {row.borrowed} borrowed
+      </Badge>
+    </Tooltip>
+  );
+}
+
 export function ModelBadges({ row }: { row: Row }) {
-  if (!row.isNew) return null;
+  if (!row.isNew && row.borrowed === 0) return null;
   return (
     <Group gap={6}>
-      <NewMark />
+      {row.isNew && <NewMark />}
+      <BorrowedMark row={row} />
     </Group>
   );
 }

@@ -23,7 +23,10 @@ export interface FitPoint {
 }
 
 /** Each fitted benchmark as a point against the one logistic curve all of them share. */
-export function fitPoints(eci: number, fit: FitTerm[]): FitPoint[] {
+export function fitPoints(
+  eci: number,
+  fit: Pick<FitTerm, "benchmark" | "edi" | "slope" | "actual">[],
+): FitPoint[] {
   return fit.map((t) => {
     const predicted = predictedScore(eci, t);
     return {
@@ -93,6 +96,8 @@ const GROUP_TITLES: Record<string, string> = {
   "Not in the fit's input.": "Not in the fit's input",
   "No model the index fits has this benchmark, so it has no difficulty or slope yet.":
     "Benchmarks without fitted parameters yet",
+  "This variant has its own result here; results at an unrecorded thinking setting only fill benchmarks it has none for.":
+    "Unrecorded-thinking results where this variant has its own",
 };
 
 /** A title for a group of unused results; "Replaced in the fit by …" stays as written. */

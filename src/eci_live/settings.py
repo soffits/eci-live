@@ -37,7 +37,7 @@ DOMAIN_PRESETS: Final = (
     ("math", "Math ECI", "Mathematics"),
 )
 
-SCHEMA_VERSION: Final = 2
+SCHEMA_VERSION: Final = 3
 SNAPSHOT_DIR: Final = "snapshots"
 ARCHIVE_ASSET: Final = "benchmark_data.zip"
 # Further inputs archived with each snapshot's release, next to the zip.

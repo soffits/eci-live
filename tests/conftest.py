@@ -68,6 +68,17 @@ def synthetic_zip(tmp_path_factory: pytest.TempPathFactory) -> Path:
     # Twin has a second version (its own variant) that does worse on Alpha: the group fit
     # keeps the best.
     rows["Alpha"].append({"Model version": "twin-mini", "Alpha": 0.05, "stderr": 0.02})
+    # Fold: a top-effort variant and one at an unrecorded thinking setting, which has a
+    # better Alpha (the top variant keeps its own) and the only Delta (borrowed).
+    for name, version, score in [
+        ("Winogrande", "fold_max", 0.8),
+        ("Alpha", "fold_max", 0.5),
+        ("Beta", "fold_max", 0.6),
+        ("Gamma", "fold_max", 0.4),
+        ("Alpha", "fold_unknown", 0.7),
+        ("Delta", "fold_unknown", 0.3),
+    ]:
+        rows[name].append({"Model version": version, name: score, "stderr": 0.02})
     # A repeated, lower run of the same version: its score keeps the best result.
     rows["Beta"].append({"Model version": "model-a", "Beta": 0.26, "stderr": 0.02})
     metadata = pd.DataFrame(
@@ -109,6 +120,10 @@ def synthetic_zip(tmp_path_factory: pytest.TempPathFactory) -> Path:
                 "date": "2025-01-01",
                 "display_name": "Twin (mini)",
             }
+        ]
+        + [
+            {"model_version": v, "model_group": "Fold", "date": "2025-01-01"}
+            for v in ("fold_max", "fold_unknown")
         ]
     )
     with zipfile.ZipFile(path, "w") as zf:

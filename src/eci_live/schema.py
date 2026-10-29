@@ -55,6 +55,9 @@ class ModelScore(TypedDict):
     ci_low: float | None
     ci_high: float | None
     benchmarks: int
+    # How many of `benchmarks` are borrowed: results of the model's unrecorded-thinking
+    # versions on benchmarks this, its top variant, has no result of its own.
+    borrowed: int
     rank_low: int | None
     rank_high: int | None
     p_first: float | None
@@ -134,6 +137,9 @@ class Snapshot(TypedDict):
     core_areas: list[CoreArea]
     # Absent when the hub couldn't be read.
     domains: NotRequired[Domains]
+    # Unrecorded-thinking version -> the top variant its results were folded into; folded
+    # versions aren't variants of their own.
+    folded: dict[str, str]
 
 
 class SnapshotRef(TypedDict):
@@ -151,6 +157,8 @@ class SiteData(TypedDict):
     first_seen: dict[str, str]
     # Model version -> file name stem of its detail page data (`models/<slug>.json`).
     slugs: dict[str, str]
+    # Slug a folded version's page had -> the slug of the variant it was folded into.
+    redirects: dict[str, str]
 
 
 # Detail pages: one file per variant, rewritten from the latest snapshot on every run.
@@ -174,6 +182,8 @@ class BenchmarkResult(TypedDict):
     used: bool
     # Why a result didn't enter the fit, in plain words (None when used).
     reason: str | None
+    # The unrecorded-thinking version that ran it, when it isn't this variant's own result.
+    borrowed_from: str | None
 
 
 class FitTerm(TypedDict):
@@ -184,6 +194,8 @@ class FitTerm(TypedDict):
     slope: float
     actual: float
     predicted: float
+    # The unrecorded-thinking version the score was borrowed from, if any.
+    borrowed_from: str | None
 
 
 class HistoryPoint(TypedDict):

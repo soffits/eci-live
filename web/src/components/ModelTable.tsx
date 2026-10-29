@@ -7,7 +7,7 @@ import type { Row } from "../data";
 import { provisionalReason } from "../eligibility";
 import { formatDate, formatRange } from "../format";
 import { LabLogo, useLabColor } from "./LabLogo";
-import { MarkDots, MarkDotsKey, NewMark, ProvisionalMark } from "./ModelBadges";
+import { BorrowedMark, MarkDots, MarkDotsKey, NewMark, ProvisionalMark } from "./ModelBadges";
 import { ModelLink } from "./ModelLink";
 import classes from "./ModelTable.module.css";
 
@@ -272,7 +272,12 @@ export function ModelTable({
             textAlign: "right",
             noWrap: true,
             visibleMediaQuery: "(min-width: 48em)",
-            render: (r) => <span className="num">{r.benchmarks}</span>,
+            render: (r) => (
+              <Group gap={6} wrap="nowrap" justify="flex-end">
+                {r.general_eci === r.eci && <BorrowedMark row={r} />}
+                <span className="num">{r.benchmarks}</span>
+              </Group>
+            ),
           },
           {
             accessor: "weights",

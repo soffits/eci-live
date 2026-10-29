@@ -109,7 +109,13 @@ def test_a_group_with_one_variant_keeps_its_score(
 ) -> None:
     groups = central.eci.set_index("Model")["eci"]
     scores = variants.scores(central, found, None)
-    single = [m for m in scores if sum(o["group"] == m["group"] for o in scores) == 1]
+    # (Fold's group fit has the unknown version's better Alpha; its top variant keeps its own.)
+    single = [
+        m
+        for m in scores
+        if sum(o["group"] == m["group"] for o in scores) == 1
+        and m["version"] not in found.folded.values()
+    ]
     assert len(single) >= 6
     # The joint fit's L2 penalty pulls capabilities slightly toward the middle; with this
     # zip's ~20 parameters that is up to ~0.4 ECI (on Epoch's real data, median 0.006).
@@ -230,3 +236,119 @@ def test_terra_is_not_all_round_today_but_astra_and_sol_are() -> None:
     assert variants.missing_areas(COUNTED["GPT-6.1 Terra (max)"], HUB_TAGS) == ["Coding"]
     assert not ranked("GPT-6.1 Terra (max)")
     assert ranked("GPT-6 Astra (max)") and ranked("GPT-6 Sol (max)")
+
+
+def _input(rows: list[tuple[str, str, float]]) -> pd.DataFrame:
+    """A variants' fit input (as `fit_input` returns it) from (version, benchmark, score)."""
+    ids = {v: f"m{i}" for i, v in enumerate(dict.fromkeys(v for v, _, _ in rows))}
+    return pd.DataFrame(
+        [
+            {"model_id": ids[v], "performance": p, "benchmark": b, "model": v}
+            | {"model_version": v, "Model": v}
+            for v, b, p in rows
+        ]
+    )
+
+
+def _table(groups: dict[str, list[str]]) -> pd.DataFrame:
+    return pd.DataFrame(
+        [
+            {"model_version": v, "model_group": g, "display_name": None}
+            | {"date": pd.Timestamp("2026-01-01")}
+            for g, versions in groups.items()
+            for v in versions
+        ]
+    )
+
+
+# GPT-6.1 Sol's versions in the snapshot of 2026-10-29: its coding results are under the
+# medium and xhigh labels, which are never borrowed; its unknown one has only ProofBench.
+SOL = {
+    "gpt-6.1-sol_max": [
+        "APEX-Agents", "ARC-AGI", "ARC-AGI-2", "Chess Puzzles", "DTBench", "EBR-bench",
+        "FrontierMath-Tier-4-v2-Private", "FrontierMath-Tiers-1-3-v2-Private",
+        "Furniture Assembly", "GPQA diamond", "LMCA", "Mystery Game Puzzles",
+        "OTIS Mock AIME 2024-2025", "SimpleQA Verified", "SpireClimb",
+    ],
+    "gpt-6.1-sol_medium": ["ARC-AGI", "ARC-AGI-2", "FrontierCode"],
+    "gpt-6.1-sol_xhigh": ["ARC-AGI", "ARC-AGI-2", "WeirdML v3"],
+    "gpt-6.1-sol_unknown": ["ProofBench"],
+}  # fmt: skip
+SOL_TAGS = HUB_TAGS | {
+    "ProofBench": ["Mathematics", "Agent"],
+    "GSO-Bench": ["Software engineering"],
+}
+
+
+def _sol(unknown: list[str]) -> tuple[pd.DataFrame, dict[str, str]]:
+    versions = SOL | {"gpt-6.1-sol_unknown": unknown}
+    data = _input([(v, b, 0.5) for v, benches in versions.items() for b in benches])
+    return variants.fold_unrecorded(data, _table({"GPT-6.1 Sol": list(versions)}), {})
+
+
+def test_the_top_variant_borrows_unknown_thinking_results_and_counts_them_for_coverage() -> None:
+    data, folded = _sol(SOL["gpt-6.1-sol_unknown"])
+    assert folded == {"gpt-6.1-sol_unknown": "gpt-6.1-sol_max"}
+    assert "gpt-6.1-sol_unknown" not in set(data["Model"])
+    top = data[data["Model"] == "gpt-6.1-sol_max"]
+    lent = top[top[variants.BORROWED].notna()]
+    assert list(lent["benchmark"]) == ["ProofBench"]
+    assert set(lent[variants.BORROWED]) == {"gpt-6.1-sol_unknown"}
+    # Lower efforts keep only their own results.
+    assert len(data[data["Model"] == "gpt-6.1-sol_xhigh"]) == 2 + 1
+    # ProofBench isn't coding, so Sol (max) stays short of all-round today...
+    assert variants.missing_areas(list(top["benchmark"]), SOL_TAGS) == ["Coding"]
+    # ...and would be all-round if its unknown runs included a coding benchmark.
+    data, _ = _sol(["ProofBench", "GSO-Bench"])
+    top = data[data["Model"] == "gpt-6.1-sol_max"]
+    assert variants.missing_areas(list(top["benchmark"]), SOL_TAGS) == []
+
+
+def test_a_labelled_score_is_never_replaced_by_a_borrowed_one() -> None:
+    data = _input(
+        [
+            ("m_max", "A", 0.2),
+            ("m_max", "Old", 0.3),
+            ("m_unknown", "A", 0.9),
+            ("m_unknown", "New", 0.9),
+            ("m_unknown", "B", 0.4),
+            ("m_thinking", "B", 0.6),
+        ]
+    )
+    table = _table({"M": ["m_max", "m_unknown", "m_thinking"]})
+    out, folded = variants.fold_unrecorded(data, table, {"Old": "New"})
+    assert folded == {"m_unknown": "m_max", "m_thinking": "m_max"}
+    best = domain.best_scores(out)
+    # Its own A stays; New replaces its own Old, so it isn't borrowed either; the better of
+    # the two unknown runs fills B.
+    assert best["m_max"].to_dict() == {"A": 0.2, "B": 0.6, "Old": 0.3}
+    assert out.set_index("benchmark").at["B", variants.BORROWED] == "m_thinking"
+
+
+@pytest.mark.parametrize(
+    "versions",
+    [
+        ["k_unknown"],  # only an unknown version: it is the model's entry
+        ["k_unknown", "k_32K"],  # a thinking budget ranks below unrecorded thinking
+        ["k_thinking", "k"],  # so does a version without a setting
+        ["k_prounknown", "k_max"],  # pro is a mode of its own, not an effort level
+    ],
+)
+def test_an_unknown_variant_that_is_its_models_top_is_unchanged(versions: list[str]) -> None:
+    data = _input([(v, b, 0.5) for v in versions for b in ("A", "B")])
+    out, folded = variants.fold_unrecorded(data, _table({"K": versions}), {})
+    assert folded == {}
+    assert out.drop(columns=variants.BORROWED).equals(data)
+    assert out[variants.BORROWED].isna().all()
+
+
+def test_folded_versions_are_not_variants_and_borrowed_ones_are_counted(
+    central: refit.Fit, found: variants.Variants
+) -> None:
+    assert found.folded == {"fold_unknown": "fold_max"}
+    scores = {m["version"]: m for m in variants.scores(central, found, None)}
+    assert "fold_unknown" not in scores
+    assert "fold_unknown" not in found.best.index.get_level_values(0)
+    assert scores["fold_max"]["borrowed"] == 1 and scores["fold_max"]["benchmarks"] == 5
+    assert found.best[("fold_max", "Alpha")] == 0.5
+    assert all(m["borrowed"] == 0 for v, m in scores.items() if v != "fold_max")

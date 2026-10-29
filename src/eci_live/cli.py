@@ -142,6 +142,7 @@ def _new_snapshot(
         models=variants.scores(result, found, tags),
         groups=refit.group_scores(result),
         core_areas=[CoreArea(name=n, domains=list(d)) for n, d in settings.CORE_AREAS],
+        folded=found.folded,
     )
     if hub_tags is not None:
         snapshot["domains"] = _domains(result, found, *hub_tags)
@@ -160,6 +161,8 @@ def _summary(snap: Snapshot) -> str:
             f"- {len(models)} variants of {len(snap['groups'])} fitted model groups; "
             f"{ranked} all-round with at least {snap['fit']['rank_min_benchmarks']} benchmarks; "
             f"{partial} with incomplete coverage",
+            f"- {len(snap['folded'])} unrecorded-thinking versions folded into their model's "
+            f"top variant ({sum(m['borrowed'] for m in models)} borrowed results)",
             f"- top: {top['name']} {top['eci']}" if top else "- top: none",
             *[
                 f"- {p['label']}: {len(p['benchmarks'])} benchmarks, {len(p['scores'])} variants"
