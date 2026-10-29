@@ -45,6 +45,7 @@ def _snapshot(fitted: Fitted, shift: float = 0.0, group_shift: float = 0.0) -> S
         models=models,
         groups=groups,
         core_areas=[],
+        folded={},
     )
 
 
@@ -95,6 +96,37 @@ def test_unused_results_say_why(details: tuple[Snapshot, dict[str, ModelDetail]]
         71.5,
         "Score",
         "https://example.org/board",
+    )
+
+
+def test_borrowed_results_are_listed_and_marked_on_the_top_variants_page(
+    details: tuple[Snapshot, dict[str, ModelDetail]],
+) -> None:
+    _, out = details
+    assert "fold_unknown" not in out
+    rows = {(r["benchmark"], r["borrowed_from"]): r for r in out["fold_max"]["results"]}
+    # Every result of the folded version is listed, marked with the version that ran it.
+    assert set(rows) == {
+        ("Winogrande", None),
+        ("Alpha", None),
+        ("Beta", None),
+        ("Gamma", None),
+        ("Alpha", "fold_unknown"),
+        ("Delta", "fold_unknown"),
+    }
+    assert rows[("Delta", "fold_unknown")]["used"]
+    assert rows[("Alpha", None)]["used"]
+    assert rows[("Alpha", "fold_unknown")]["reason"] == detail.HAS_OWN
+    terms = {t["benchmark"]: t["borrowed_from"] for t in out["fold_max"]["fit"]}
+    assert terms == {
+        "Winogrande": None,
+        "Alpha": None,
+        "Beta": None,
+        "Gamma": None,
+        "Delta": "fold_unknown",
+    }
+    assert all(
+        r["borrowed_from"] is None for v, d in out.items() if v != "fold_max" for r in d["results"]
     )
 
 

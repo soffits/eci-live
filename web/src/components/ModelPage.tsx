@@ -50,7 +50,7 @@ import {
 import { formatDate, formatPercent, formatRange } from "../format";
 import { niceTicks } from "../scale";
 import { LabLogo } from "./LabLogo";
-import { ModelBadges } from "./ModelBadges";
+import { BorrowedTag, ModelBadges } from "./ModelBadges";
 import { ModelLink } from "./ModelLink";
 import classes from "./ModelPage.module.css";
 
@@ -118,9 +118,11 @@ function Headline({ row, site }: { row: Row; site: SiteData }) {
         label="Benchmarks"
         value={String(row.benchmarks)}
         sub={
-          row.benchmarks >= fit.rank_min_benchmarks
-            ? "results behind the score"
-            : `ranked from ${fit.rank_min_benchmarks}`
+          row.borrowed > 0
+            ? `${row.borrowed} borrowed from unrecorded thinking`
+            : row.benchmarks >= fit.rank_min_benchmarks
+              ? "results behind the score"
+              : `ranked from ${fit.rank_min_benchmarks}`
         }
       />
     </SimpleGrid>
@@ -547,7 +549,9 @@ function HowComputed({ row, detail, site }: { row: Row; detail: ModelDetail; sit
               .map(({ t, predicted, pull }) => {
                 return (
                   <Table.Tr key={t.benchmark}>
-                    <Table.Td>{t.benchmark}</Table.Td>
+                    <Table.Td>
+                      <BenchmarkName name={t.benchmark} borrowedFrom={t.borrowed_from} />
+                    </Table.Td>
                     <Table.Td ta="right">{t.edi.toFixed(1)}</Table.Td>
                     <Table.Td ta="right">{t.slope.toFixed(3)}</Table.Td>
                     <Table.Td ta="right">{Math.round(predicted * 100)}%</Table.Td>
@@ -569,6 +573,16 @@ function HowComputed({ row, detail, site }: { row: Row; detail: ModelDetail; sit
         </Table>
       </Table.ScrollContainer>
     </Stack>
+  );
+}
+
+function BenchmarkName({ name, borrowedFrom }: { name: string; borrowedFrom: string | null }) {
+  if (borrowedFrom === null) return name;
+  return (
+    <Group gap={6} wrap="nowrap">
+      <span>{name}</span>
+      <BorrowedTag version={borrowedFrom} />
+    </Group>
   );
 }
 
@@ -619,7 +633,9 @@ function ResultsTable({ results, detail }: { results: BenchmarkResult[]; detail:
         <Table.Tbody className="num">
           {results.map((r) => (
             <Table.Tr key={r.id}>
-              <Table.Td>{r.benchmark}</Table.Td>
+              <Table.Td>
+                <BenchmarkName name={r.benchmark} borrowedFrom={r.borrowed_from} />
+              </Table.Td>
               <Table.Td ta="right">
                 <HoverTip label={`Column: ${r.score_column}`}>
                   <span className={classes.hint}>{formatScore(r.score, scale(r))}</span>
@@ -666,6 +682,7 @@ function ResultsTable({ results, detail }: { results: BenchmarkResult[]; detail:
 function Results({ detail }: { detail: ModelDetail }) {
   const { used, unused } = splitResults(detail.results);
   const unusedCount = unused.reduce((n, g) => n + g.results.length, 0);
+  const lenders = [...new Set(detail.results.flatMap((r) => r.borrowed_from ?? []))].sort();
   return (
     <Stack gap="xl">
       <Text c="dimmed" className={classes.prose}>
@@ -674,6 +691,14 @@ function Results({ detail }: { detail: ModelDetail }) {
         sees after rescaling (random guessing = 0%, the benchmark's ceiling = 100%). Empty columns
         are left out.
       </Text>
+      {lenders.length > 0 && (
+        <Text c="dimmed" className={classes.prose}>
+          Also listed, marked <BorrowedTag version={lenders.join(", ")} />: every result of{" "}
+          {lenders.join(", ")}, the same model run at an unrecorded thinking setting. This is the
+          model's top-effort variant, so those results fill the benchmarks it has no result of its
+          own for; where it has one, its own counts. They have no row of their own.
+        </Text>
+      )}
       <Text size="sm" c="dimmed" hiddenFrom="sm" className="chrome">
         The tables scroll sideways for more columns →
       </Text>

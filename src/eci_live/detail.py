@@ -20,7 +20,7 @@ from eci.dataloader import BENCHMARK_METADATA_FILENAME, MODEL_METADATA_FILENAME
 
 from eci_live import domain, refit
 from eci_live.schema import BenchmarkResult, FitTerm, HistoryPoint, ModelDetail, Snapshot
-from eci_live.variants import Variants
+from eci_live.variants import BORROWED, Variants
 
 # Columns every benchmark file shares; they describe the model, not its score.
 DESCRIPTIVE = frozenset(
@@ -53,6 +53,10 @@ BETTER_RESULT = "Another result of this variant scored higher here; the score ke
 SAME_SCORE = "Another result of this variant has the same score; it is counted once."
 NOT_IN_FIT = "Not in the fit's input."
 NO_PARAMETERS = "No model the index fits has this benchmark, so it has no difficulty or slope yet."
+HAS_OWN = (
+    "This variant has its own result here; results at an unrecorded thinking setting only fill "
+    "benchmarks it has none for."
+)
 
 
 class ReproduceError(RuntimeError):
@@ -230,22 +234,32 @@ def _decide(
     results: pd.DataFrame, fit_input: pd.DataFrame, supersede: dict[str, str], fitted: set[str]
 ) -> list[tuple[bool, str | None]]:
     """For one variant's rows: which one its score used per benchmark, and why the others
-    weren't. `fit_input` is this variant's rows of its `prepare_benchmark_data`, `fitted` the
-    benchmarks the group-level fit has parameters for."""
-    used_perf = {str(r["benchmark"]): float(r["performance"]) for r in _rows(fit_input)}
+    weren't. `fit_input` is this variant's rows of its `prepare_benchmark_data` (with the
+    results it borrows, BORROWED naming their version), `fitted` the benchmarks the
+    group-level fit has parameters for. A row's `origin` is None for its own results, else
+    the unrecorded-thinking version it would borrow from."""
+    used_perf = {
+        str(r["benchmark"]): (float(r["performance"]), _text(r[BORROWED])) for r in _rows(fit_input)
+    }
     claimed: set[str] = set()
     out: list[tuple[bool, str | None]] = []
     for row in _rows(results):
-        bench = str(row["benchmark"])
+        bench, origin = str(row["benchmark"]), _text(row["origin"])
         if not row["in_index"]:
             out.append((False, NOT_IN_INDEX))
         elif bench not in used_perf:
             new = supersede.get(bench)
             out.append((False, REPLACED.format(new=new) if new in used_perf else NOT_IN_FIT))
+        elif used_perf[bench][1] != origin:
+            # The score took this benchmark from elsewhere: its own result, a better borrowed
+            # one, or a borrowed one because its own didn't enter the fit.
+            used_from = used_perf[bench][1]
+            reason = NOT_IN_FIT if origin is None else HAS_OWN if used_from is None else None
+            out.append((False, reason or BETTER_RESULT))
         elif bench not in fitted:
             claimed.add(bench)
             out.append((False, NO_PARAMETERS))
-        elif not math.isclose(float(row["normalized"]), used_perf[bench], abs_tol=1e-9):
+        elif not math.isclose(float(row["normalized"]), used_perf[bench][0], abs_tol=1e-9):
             out.append((False, BETTER_RESULT))
         elif bench not in claimed:
             claimed.add(bench)
@@ -331,7 +345,11 @@ def build(
     for model in latest["models"]:
         version = model["version"]
         own = found.data[found.data["Model"] == version]
-        rows = results[results["version"] == version]
+        # Results of the unrecorded-thinking versions folded into this one are listed here
+        # too, all of them, so nothing of a folded version is hidden.
+        lenders = [v for v, top in found.folded.items() if top == version]
+        rows = results[results["version"].isin([version, *lenders])]
+        rows = rows.assign(origin=rows["version"].where(rows["version"] != version, None))
         decisions = _decide(rows, own, supersede, set(params))
         # Facts Epoch records on only some versions of a model come from the group.
         mine = pd.concat(
@@ -351,6 +369,7 @@ def build(
                     slope=round(slope, 5),
                     actual=round(float(r["performance"]), 4),
                     predicted=round(predicted(eci, edi, slope), 4),
+                    borrowed_from=_text(r[BORROWED]),
                 )
             )
         details[version] = ModelDetail(
@@ -376,6 +395,7 @@ def build(
                     normalized=_float(r["normalized"]),
                     used=used,
                     reason=reason,
+                    borrowed_from=_text(r["origin"]),
                 )
                 for r, (used, reason) in zip(_rows(rows), decisions, strict=True)
             ],

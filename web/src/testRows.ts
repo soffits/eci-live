@@ -28,6 +28,7 @@ export function row(
     weights: "closed",
     accessibility: null,
     missing_areas: [],
+    borrowed: 0,
     general_eci: eci,
     country: null,
     training_compute_flop: null,

@@ -104,6 +104,13 @@ export function About({ snapshot }: { snapshot: Snapshot }) {
               {(fit.bootstrap_samples * fit.resamples_per_draw).toLocaleString("en")} draws.
             </List.Item>
             <List.Item>
+              A model's top reasoning setting also uses its results at an unrecorded thinking
+              setting, marked "borrowed", on benchmarks where it has none of its own. Those runs are
+              usually the provider's default, at or below the top setting, so they are a
+              conservative stand-in for the missing results, and the model's main row uses every
+              result published for it.
+            </List.Item>
+            <List.Item>
               Every snapshot is kept on the{" "}
               <Anchor href={`${LINKS.repo}/tree/data`}>data branch</Anchor> and can be reproduced.
             </List.Item>

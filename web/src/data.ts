@@ -21,6 +21,9 @@ export interface ModelScore {
   ci_low: number | null;
   ci_high: number | null;
   benchmarks: number;
+  /** How many of `benchmarks` are borrowed: the model's results at an unrecorded thinking
+   * setting, on benchmarks this, its top variant, has none of its own. */
+  borrowed: number;
   /** 90% interval of the rank and the share of draws ranking it first, among variants with
    * at least `fit.rank_min_benchmarks` benchmarks; null for thinner ones. */
   rank_low: number | null;
@@ -111,6 +114,8 @@ export interface Snapshot {
   core_areas: CoreArea[];
   /** Absent when the hub couldn't be read. */
   domains?: Domains;
+  /** Unrecorded-thinking version -> the top variant its results were folded into. */
+  folded: Record<string, string>;
 }
 
 export interface SiteData {
@@ -121,6 +126,8 @@ export interface SiteData {
   first_seen: Record<string, string>;
   /** Model version -> file stem of its detail data, `models/<slug>.json`. */
   slugs: Record<string, string>;
+  /** Slug a folded version's page had -> the slug of the variant it was folded into. */
+  redirects: Record<string, string>;
 }
 
 // Detail pages (src/eci_live/schema.py, ModelDetail and friends).
@@ -142,6 +149,8 @@ export interface BenchmarkResult {
   used: boolean;
   /** Why a result didn't enter the fit, in plain words. */
   reason: string | null;
+  /** The unrecorded-thinking version that ran it, when it isn't this variant's own. */
+  borrowed_from: string | null;
 }
 
 /** One benchmark in this model's fit. */
@@ -151,6 +160,8 @@ export interface FitTerm {
   slope: number;
   actual: number;
   predicted: number;
+  /** The unrecorded-thinking version the score was borrowed from, if any. */
+  borrowed_from: string | null;
 }
 
 export interface HistoryPoint {

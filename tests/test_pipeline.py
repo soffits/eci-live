@@ -21,6 +21,7 @@ def model(version: str, eci: float) -> ModelScore:
         ci_low=eci - 2,
         ci_high=eci + 2,
         benchmarks=5,
+        borrowed=0,
         rank_low=None,
         rank_high=None,
         p_first=None,
@@ -56,6 +57,7 @@ def snapshot(
         models=models,
         groups=[],
         core_areas=[],
+        folded={},
     )
 
 
@@ -106,6 +108,16 @@ def test_history_round_trip_and_site_data(tmp_path: Path) -> None:
     assert site["previous_eci"] == {"a_max": 150.0}
     assert site["first_seen"] == {"a_max": "2026-10-28T05:00:00Z", "b/c": "2026-10-29T05:00:00Z"}
     assert site["slugs"] == {"a_max": "a-max", "b/c": "b-c"}
+    assert site["redirects"] == {}
+
+
+def test_folded_versions_old_pages_redirect_to_their_top_variant() -> None:
+    snap = snapshot("2026-10-29T05:00:00Z", "bbbb0000", [model("a_max", 151.0)])
+    # A folded version whose top variant isn't published has no page to land on.
+    snap["folded"] = {"a_unknown": "a_max", "z_unknown": "z_max"}
+    site = history.site_data([snap])
+    assert site["slugs"] == {"a_max": "a-max"}
+    assert site["redirects"] == {"a-unknown": "a-max"}
 
 
 def test_snapshots_of_an_older_schema_are_not_variant_history() -> None:

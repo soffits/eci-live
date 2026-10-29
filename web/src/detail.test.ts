@@ -71,6 +71,7 @@ test("results split into used and unused, grouped by reason", () => {
     normalized: null,
     used,
     reason,
+    borrowed_from: null,
   });
   const out = splitResults([
     r("B", true, null),
@@ -115,6 +116,12 @@ test("group titles read as plurals", () => {
   assert.equal(
     groupTitle("Another result of this variant scored higher here; the score keeps the best one."),
     "Lower repeat results (each benchmark's best counts)",
+  );
+  assert.equal(
+    groupTitle(
+      "This variant has its own result here; results at an unrecorded thinking setting only fill benchmarks it has none for.",
+    ),
+    "Unrecorded-thinking results where this variant has its own",
   );
 });
 

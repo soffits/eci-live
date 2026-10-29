@@ -165,6 +165,7 @@ def test_fit_json_has_the_variant_input_and_model_facts(
         models=models,
         groups=refit.group_scores(fit),
         core_areas=[],
+        folded={},
     )
     details = detail.build(synthetic_zip, [snap], fit, found)
     data = fitdata.build(fit, found, snap, details)
