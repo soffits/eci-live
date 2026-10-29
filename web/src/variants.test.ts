@@ -107,3 +107,12 @@ test("siblings are the model's other variants in default order", () => {
     ["Astra (max)", "Astra (high)"],
   );
 });
+
+test("with orProvisional, a model with no ranked variant still shows its top effort", () => {
+  const rows = [variant("Terra (max)", 168, "max", 3), variant("Terra (low)", 150, "low", 2)];
+  assert.deepEqual(names(rows), []);
+  assert.deepEqual(
+    defaultVariants(rows, true).rows.map((r) => r.name),
+    ["Terra (max)"],
+  );
+});

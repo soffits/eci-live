@@ -193,7 +193,11 @@ export function App({
   // One variant per model: its highest reasoning effort with enough evidence (variants.ts).
   const defaults = useMemo(() => defaultVariants(rows), [rows]);
   const [topView, setTopView] = useState<TopView>("current");
-  const current = useMemo(() => currentGeneration(defaults.rows), [defaults]);
+  // The current line-up is decided by release, not by evidence: a lab's newest model stands for
+  // its line even before it qualifies (drawn provisional, unranked), instead of the line
+  // falling back to the previous generation.
+  const lineup = useMemo(() => defaultVariants(rows, true), [rows]);
+  const current = useMemo(() => currentGeneration(lineup.rows), [lineup]);
   // Variants the user added to the chart, kept in the URL (?model=<version>) for sharing.
   const [pickedVersions, setPickedVersions] = useQueryState(
     "model",
@@ -265,7 +269,7 @@ export function App({
   const hasPrevious =
     isGeneral && general.some((r) => r.delta !== null && Math.abs(r.delta) >= 0.05);
   const top = (topView === "current" ? current : defaults.rows).slice(0, TOP_N);
-  const hidden = defaults.rows.length - current.length;
+  const hidden = lineup.rows.length - current.length;
   const chart = withPicked(top, all, pickedKnown);
   const unpick = (name: string) => setPicked(pickedKnown.filter((n) => n !== name));
   const pick = (name: string) => setPicked([...pickedKnown, name]);
@@ -378,7 +382,7 @@ export function App({
                       rows={chart.rows}
                       added={chart.added}
                       onRemove={unpick}
-                      skipped={defaults.skipped}
+                      skipped={topView === "current" ? lineup.skipped : defaults.skipped}
                       othersOf={(r) => siblings(r, all)}
                       onAdd={pick}
                       axisLabel={isGeneral ? "ECI" : preset.label}
