@@ -13,7 +13,7 @@ export function lineOf(name: string): string {
     .toLowerCase()
     .replace(/\([^)]*\)/g, " ")
     .replace(/\b\d{3,}\b/g, " ")
-    .replace(/[a-z]?\d+(\.\d+)*[a-z]?\b/g, (m) => (/^[a-z]\d/.test(m) ? m[0] : " "))
+    .replace(/[a-z]?\d+(\.\d+)*[a-z]?\b/g, (m) => (/^[a-z]\d/.test(m) ? m.charAt(0) : " "))
     .replace(/[-_.]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
