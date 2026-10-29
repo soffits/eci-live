@@ -24,7 +24,7 @@ jobs:
     outputs:
       deploy: ${{ steps.refit.outputs.snapshot != '' || github.event_name != 'schedule' }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
 
@@ -37,7 +37,7 @@ jobs:
             git worktree add --orphan -b data history
           fi
 
-      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - uses: astral-sh/setup-uv@v10
 
       - name: Refit ECI and check drift against Epoch's scores
         id: refit
@@ -48,7 +48,7 @@ jobs:
           jq -e '.latest.build.run_url and .latest.build.commit and .latest.input.archive_url' \
             web/public/eci.json > /dev/null
 
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .node-version
           cache: npm
@@ -80,7 +80,7 @@ jobs:
 
       - name: Upload site
         if: steps.refit.outputs.snapshot != '' || github.event_name != 'schedule'
-        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        uses: actions/upload-pages-artifact@v5
         with:
           path: web/dist
 
@@ -97,4 +97,4 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+        uses: actions/deploy-pages@v5
