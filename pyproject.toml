@@ -9,6 +9,8 @@ requires-python = ">=3.13"
 dependencies = [
     "eci @ git+https://github.com/epoch-research/eci-public@e937446cd8ac0e910ea578516b1cab2b00c06d25",
     "pandas>=3.0",
+    "tree-sitter>=0.26",
+    "tree-sitter-javascript>=0.25",
 ]
 
 [project.scripts]
@@ -41,7 +43,7 @@ strict = true
 files = ["src", "tests"]
 
 [[tool.mypy.overrides]]
-module = ["eci", "eci.*"]
+module = ["eci", "eci.*", "scipy", "scipy.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

@@ -9,3 +9,4 @@ node_modules/
 web/dist/
 web/public/eci.json
 web/public/models/
+web/public/fit.json

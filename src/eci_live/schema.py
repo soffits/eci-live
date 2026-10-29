@@ -51,6 +51,70 @@ class ModelScore(TypedDict):
     official_eci: float | None
 
 
+class DomainBenchmark(TypedDict):
+    """An index benchmark and the domain tags Epoch's benchmark hub gives it."""
+
+    benchmark: str
+    # The hub registry entry it was matched to, or None when the hub doesn't list it.
+    hub_id: str | None
+    domains: list[str]
+    # Epoch's hub leaves benchmarks without a 0-100% score (time horizons, ratings) out
+    # of its domain presets.
+    percentage: bool
+    # False for entries the hub hides (retired versions); also left out of the presets.
+    listed: bool
+
+
+class DomainScore(TypedDict):
+    name: str
+    eci: float
+    ci_low: float | None
+    ci_high: float | None
+    benchmarks: int
+
+
+class Preset(TypedDict):
+    id: str
+    label: str
+    domain: str
+    benchmarks: list[str]
+    # Every model with at least one of the benchmarks; the page applies "min. benchmarks".
+    scores: list[DomainScore]
+
+
+class Domains(TypedDict):
+    hub_page: str
+    hub_module: InputInfo
+    resamples_per_draw: int
+    seed: int
+    benchmarks: list[DomainBenchmark]
+    presets: list[Preset]
+
+
+class CyberModel(TypedDict):
+    name: str
+    # The model's name in the general ECI, or None if Epoch scores it for cyber only.
+    general_name: str | None
+    lab: str
+    release_date: str | None
+    accessibility: str | None
+    weights: Weights
+    country: str | None
+    eci: float
+    ci_low: float | None
+    ci_high: float | None
+    benchmarks: int
+
+
+class Cyber(TypedDict):
+    """Epoch's own published Cyber ECI, shown as Epoch's numbers (not refit here)."""
+
+    scores: InputInfo
+    results: InputInfo
+    benchmarks: list[str]
+    models: list[CyberModel]
+
+
 class Snapshot(TypedDict):
     schema: int
     id: str
@@ -59,6 +123,9 @@ class Snapshot(TypedDict):
     build: BuildInfo
     drift: DriftInfo
     models: list[ModelScore]
+    # Absent on snapshots from before domain ECIs, or when the hub couldn't be read.
+    domains: NotRequired[Domains]
+    cyber: NotRequired[Cyber]
 
 
 class SnapshotRef(TypedDict):
@@ -134,3 +201,28 @@ class ModelDetail(TypedDict):
     history: list[HistoryPoint]
     fit: list[FitTerm]
     results: list[BenchmarkResult]
+
+
+# `fit.json`: what the views beyond the leaderboard need, rewritten from the latest
+# snapshot's central fit on every run.
+
+
+class FitBenchmark(TypedDict):
+    name: str
+    edi: float
+    slope: float
+    domains: list[str]
+
+
+class FitModel(TypedDict):
+    name: str
+    country: str | None
+    training_compute_flop: float | None
+
+
+class FitData(TypedDict):
+    snapshot: str
+    benchmarks: list[FitBenchmark]
+    models: list[FitModel]
+    # The fit's input: [model index, benchmark index, 0-1 score], best result per pair.
+    results: list[tuple[int, int, float]]
