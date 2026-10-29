@@ -36,7 +36,8 @@ export const theme = createTheme({
   cursorType: "pointer",
   components: {
     // Links take the size of the text around them.
-    Anchor: Anchor.extend({ defaultProps: { inherit: true } }),
+    // Links are underlined, so small ones stand out from text by more than their colour.
+    Anchor: Anchor.extend({ defaultProps: { inherit: true, underline: "always" } }),
     // One badge look everywhere: sentence case, a light fill and a matching hairline border.
     Badge: Badge.extend({
       defaultProps: { radius: "xl", variant: "light", tt: "none", fw: 600 },

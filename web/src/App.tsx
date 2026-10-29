@@ -309,12 +309,14 @@ export function App({
                     {topView === "current"
                       ? `The newest version of each lab's ${LINES_PER_LAB} most recent model lines. ${hidden} older models are hidden, so ranks skip numbers: they count every model.`
                       : "Every model, including ones their lab has since matched or beaten."}
+                    {preset.epochs &&
+                      " These are Epoch AI's published Cyber ECI scores, not this refit's."}
                   </Text>
                   <Box mb="sm">
                     <ModelPicker models={all} value={pickedKnown} onChange={setPicked} />
                   </Box>
                   <Box mb="xs">
-                    <LeaderboardKey intervals={preset.intervals} dots={narrow} />
+                    <LeaderboardKey intervals={preset.intervals} dots={narrow} tie={isGeneral} />
                   </Box>
                   {chart.rows.length > 0 ? (
                     <Leaderboard

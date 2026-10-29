@@ -28,7 +28,7 @@ export function LabLegend({ labs, selected, onToggle, scroll = false }: Props) {
           title={entry.labs.length > 1 ? entry.labs.join(", ") : undefined}
         >
           <Group component="span" gap={6} wrap="nowrap">
-            <ColorSwatch component="span" color={entry.color} size={8} withShadow={false} />
+            <ColorSwatch component="span" color={entry.color} size={10} withShadow={false} />
             {entry.other ? `${entry.label} (${entry.labs.length})` : entry.label}
           </Group>
         </Chip>

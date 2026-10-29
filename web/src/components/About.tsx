@@ -157,9 +157,8 @@ export function About({ snapshot }: { snapshot: Snapshot }) {
             )}
           </Fact>
           <Fact label="Bootstrap">
-            {fit.bootstrap_samples} refits
-            {fit.bootstrap_chunks ? ` in ${fit.bootstrap_chunks} seeded chunks` : ""}, seed{" "}
-            {fit.bootstrap_seed}, {Math.round(fit.ci_level * 100)}% intervals
+            {fit.bootstrap_samples} refits, seed {fit.bootstrap_seed}
+            {fit.bootstrap_chunks ? `, ${fit.bootstrap_chunks} chunks` : ""}
           </Fact>
           <Fact label="Agreement with Epoch">
             mean gap {drift.mean_abs.toFixed(2)}, max {drift.max_abs.toFixed(2)} over{" "}

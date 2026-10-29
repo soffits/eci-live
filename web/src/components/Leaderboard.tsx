@@ -299,8 +299,11 @@ export function Leaderboard({
 export function LeaderboardKey({
   intervals = true,
   dots = false,
+  tie = true,
 }: {
   intervals?: boolean;
+  /** Whether any row is tied for #1 (only the general index has rank intervals). */
+  tie?: boolean;
   /** Phones mark new and unpublished models with dots; explain them. */
   dots?: boolean;
 }) {
@@ -324,10 +327,12 @@ export function LeaderboardKey({
           not on Epoch yet
         </span>
       )}
-      <span>
-        <span className={classes.keyTie}>=1</span>
-        statistically tied for #1
-      </span>
+      {tie && (
+        <span>
+          <span className={classes.keyTie}>=1</span>
+          statistically tied for #1
+        </span>
+      )}
     </div>
   );
 }

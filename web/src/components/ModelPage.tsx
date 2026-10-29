@@ -458,7 +458,7 @@ function HowComputed({ row, detail, site }: { row: Row; detail: ModelDetail; sit
           horizontalSpacing={narrow ? "xs" : "md"}
           layout="fixed"
           className="num"
-          borderColor="var(--eci-grid)"
+          borderColor="var(--eci-card-border)"
         >
           <Table.Thead>
             <Table.Tr>
@@ -534,7 +534,7 @@ function ResultsTable({ results, detail }: { results: BenchmarkResult[]; detail:
         verticalSpacing={8}
         horizontalSpacing="md"
         layout="fixed"
-        borderColor="var(--eci-grid)"
+        borderColor="var(--eci-card-border)"
       >
         <Table.Thead>
           <Table.Tr>
