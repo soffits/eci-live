@@ -1,4 +1,4 @@
-import { Badge, Group, Stack, Text, TextInput, Tooltip } from "@mantine/core";
+import { Badge, Group, Progress, Stack, Text, TextInput, Tooltip } from "@mantine/core";
 import { DataTable, type DataTableSortStatus } from "mantine-datatable";
 import { useMemo, useState } from "react";
 import { TABLE_PAGE_SIZE, WEIGHTS } from "../config";
@@ -6,7 +6,6 @@ import type { Row } from "../data";
 import { formatDate, formatRange } from "../format";
 import { LabLogo, useLabColor } from "./LabLogo";
 import { NewMark, PreviewMark } from "./ModelBadges";
-import classes from "./ModelTable.module.css";
 
 type SortKey = "rank" | "name" | "lab" | "released" | "eci" | "benchmarks" | "delta";
 
@@ -35,19 +34,21 @@ function Delta({ value }: { value: number | null }) {
   );
 }
 
-/** The 90% interval as a small capsule on a shared scale, with a dot at the estimate. */
+/** The 90% interval on a shared scale: Progress sections for the gap, the interval up to
+ * the estimate, a tick at the estimate, and the rest of the interval. */
 function CiCapsule({ row, scale }: { row: Row; scale: (v: number) => number }) {
   const color = useLabColor()(row.lab);
   const low = scale(row.ci_low ?? row.eci);
+  const mid = scale(row.eci);
   const high = scale(row.ci_high ?? row.eci);
+  const tick = 2.5;
   return (
-    <div className={classes.track} aria-hidden>
-      <span
-        className={classes.capsule}
-        style={{ left: `${low}%`, width: `${Math.max(high - low, 0)}%`, background: color }}
-      />
-      <span className={classes.dot} style={{ left: `${scale(row.eci)}%`, background: color }} />
-    </div>
+    <Progress.Root size={10} w={120} radius="xl" aria-hidden>
+      <Progress.Section value={low} color="transparent" />
+      <Progress.Section value={Math.max(mid - tick / 2 - low, 0)} color={color} opacity={0.4} />
+      <Progress.Section value={tick} color={color} />
+      <Progress.Section value={Math.max(high - mid - tick / 2, 0)} color={color} opacity={0.4} />
+    </Progress.Root>
   );
 }
 
@@ -73,8 +74,9 @@ export function ModelTable({ rows, hasPrevious }: { rows: Row[]; hasPrevious: bo
   const current = Math.min(page, lastPage);
   const records = sorted.slice((current - 1) * TABLE_PAGE_SIZE, current * TABLE_PAGE_SIZE);
 
-  const lows = rows.map((r) => r.ci_low ?? r.eci);
-  const highs = rows.map((r) => r.ci_high ?? r.eci);
+  // One scale per page, so intervals stay readable and comparable within what is shown.
+  const lows = records.map((r) => r.ci_low ?? r.eci);
+  const highs = records.map((r) => r.ci_high ?? r.eci);
   const min = Math.min(...lows);
   const span = Math.max(...highs) - min || 1;
   const scale = (v: number) => ((v - min) / span) * 100;
@@ -89,7 +91,6 @@ export function ModelTable({ rows, hasPrevious }: { rows: Row[]; hasPrevious: bo
           setPage(1);
         }}
         aria-label="Search models or labs"
-        radius="xl"
       />
       <DataTable
         records={records}

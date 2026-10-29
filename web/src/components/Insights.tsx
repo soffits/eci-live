@@ -49,10 +49,14 @@ function WhoIsFirst({ rows }: { rows: Row[] }) {
       <Text size="xs" c="dimmed" mb="sm">
         Share of the bootstrap refits in which each model ranks first.
       </Text>
-      <Progress.Root size={14} radius="xl" mb="sm" className={classes.split}>
-        {contenders.map((r) => (
+      <Progress.Root size={14} radius="xl" mb="sm">
+        {contenders.map((r, i) => (
           <Tooltip key={r.name} label={`${r.name}: ${formatPercent(r.p_first ?? 0)}`}>
-            <Progress.Section value={(r.p_first ?? 0) * 100} color={colorOf(r.lab)} />
+            <Progress.Section
+              value={(r.p_first ?? 0) * 100}
+              color={colorOf(r.lab)}
+              style={i > 0 ? { borderLeft: "2px solid var(--eci-hero-surface)" } : undefined}
+            />
           </Tooltip>
         ))}
       </Progress.Root>

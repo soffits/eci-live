@@ -8,14 +8,18 @@ import { StrictMode, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
 import { loadSiteData } from "./data";
-import { theme } from "./theme";
+import { cssVariablesResolver, theme } from "./theme";
 
 const root = document.getElementById("root");
 if (!root) throw new Error("#root missing");
 
 createRoot(root).render(
   <StrictMode>
-    <MantineProvider theme={theme} defaultColorScheme="auto">
+    <MantineProvider
+      theme={theme}
+      cssVariablesResolver={cssVariablesResolver}
+      defaultColorScheme="auto"
+    >
       <Suspense
         fallback={
           <Center h="100vh">

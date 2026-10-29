@@ -48,12 +48,11 @@
 
 /* The answer: the one panel with a vivid gradient ring and a glow. */
 .hero {
-  --hero-surface: light-dark(#ffffff, #15161b);
   margin-bottom: 40px;
   border: 2px solid transparent;
   border-radius: 24px;
   background:
-    linear-gradient(var(--hero-surface), var(--hero-surface)) padding-box,
+    linear-gradient(var(--eci-hero-surface), var(--eci-hero-surface)) padding-box,
     linear-gradient(120deg, #d97757, #ec4899, #8b5cf6, #4285f4, #06b6d4, #10a37f) border-box;
   box-shadow:
     0 40px 80px -48px rgb(139 92 246 / 55%),
@@ -75,7 +74,7 @@
   padding: var(--mantine-spacing-xl);
   border: 1px solid var(--mantine-color-default-border);
   border-radius: 20px;
-  background: light-dark(#ffffff, #121317);
+  background: var(--eci-surface);
 }
 
 .pulse {

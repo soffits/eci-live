@@ -1,5 +1,5 @@
-import { Chip, Group } from "@mantine/core";
-import { LabLogo, useLabColor } from "./LabLogo";
+import { Chip, ColorSwatch, Group } from "@mantine/core";
+import { useLabColor } from "./LabLogo";
 
 interface Props {
   labs: string[];
@@ -16,24 +16,12 @@ export function LabLegend({ labs, selected, onToggle }: Props) {
         <Chip
           key={lab}
           size="xs"
-          radius="xl"
           variant="outline"
           checked={selected.includes(lab)}
           onChange={() => onToggle(lab)}
           color={colorOf(lab)}
-          icon={<LabLogo lab={lab} size={12} />}
-          styles={{ label: { gap: 4, paddingInline: 10 } }}
         >
-          <span
-            style={{
-              display: "inline-block",
-              width: 8,
-              height: 8,
-              borderRadius: 4,
-              marginRight: 6,
-              background: colorOf(lab),
-            }}
-          />
+          <ColorSwatch component="span" color={colorOf(lab)} size={8} mr={6} withShadow={false} />
           {lab}
         </Chip>
       ))}

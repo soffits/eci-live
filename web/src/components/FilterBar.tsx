@@ -54,7 +54,6 @@ function Controls({ value, onChange, labs, bounds, stacked }: Props & { stacked:
         onChange={(selected) => onChange({ ...value, labs: selected })}
         searchable
         clearable
-        classNames={{ input: classes.labs }}
         className={classes.grow}
         renderOption={({ option }) => (
           <Group gap={8} wrap="nowrap">
@@ -76,6 +75,7 @@ function Controls({ value, onChange, labs, bounds, stacked }: Props & { stacked:
             onChange={(months) => onChange({ ...value, months })}
             label={monthLabel}
             aria-label="Release date range"
+            style={{ flex: 1 }}
           />
         </Box>
       </Input.Wrapper>
@@ -107,7 +107,6 @@ export function FilterBar(props: Props) {
       <Group justify="space-between" wrap="nowrap">
         <Button
           variant="default"
-          radius="xl"
           onClick={open}
           rightSection={
             active > 0 && (
@@ -121,19 +120,10 @@ export function FilterBar(props: Props) {
         </Button>
         {count}
       </Group>
-      <Drawer
-        opened={opened}
-        onClose={close}
-        position="bottom"
-        styles={{ content: { height: "auto", width: "100%", flex: "0 0 auto" } }}
-        title="Filter models"
-        radius="lg"
-      >
+      <Drawer opened={opened} onClose={close} position="bottom" size="sheet" title="Filter models">
         <Stack gap="lg" pb="md">
           <Controls {...props} stacked />
-          <Button onClick={close} radius="xl">
-            Show {props.shown} models
-          </Button>
+          <Button onClick={close}>Show {props.shown} models</Button>
         </Stack>
       </Drawer>
     </>

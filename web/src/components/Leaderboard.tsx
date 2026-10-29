@@ -91,9 +91,8 @@ export function Leaderboard({ rows }: { rows: Row[] }) {
           width={Math.max(width, 0)}
           height={16}
           rx={8}
-          className={classes.capsule}
           fill={color}
-          fillOpacity={preview ? 0.12 : 0.4}
+          style={{ fillOpacity: preview ? 0.12 : "var(--eci-capsule-opacity)" }}
           stroke={color}
           strokeOpacity={preview ? 1 : 0}
           strokeDasharray={preview ? "4 3" : undefined}
@@ -103,8 +102,8 @@ export function Leaderboard({ rows }: { rows: Row[] }) {
           cx={cx}
           cy={cy}
           r={6.5}
-          fill={preview ? "var(--hero-surface)" : color}
-          stroke={preview ? color : "var(--hero-surface)"}
+          fill={preview ? "var(--eci-hero-surface)" : color}
+          stroke={preview ? color : "var(--eci-hero-surface)"}
           strokeWidth={preview ? 2.5 : 2}
         />
         {!stacked && (

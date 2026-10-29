@@ -57,7 +57,6 @@ function ThemeToggle() {
   return (
     <ActionIcon
       variant="default"
-      radius="xl"
       size="lg"
       onClick={() => setColorScheme(dark ? "light" : "dark")}
       aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}

@@ -11,10 +11,6 @@
   color: var(--mantine-color-dimmed);
 }
 
-.split :global(.mantine-Progress-section) + :global(.mantine-Progress-section) {
-  border-left: 2px solid var(--hero-surface);
-}
-
 .labRow {
   padding-left: 10px;
   border-left: 3px solid;

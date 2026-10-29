@@ -21,6 +21,18 @@ Epoch AI publishes its benchmark data daily, but its official ECI scores lag beh
 - `.github/workflows/publish.yml`: the `build` job (`contents: write`) checks out the `data` branch as a worktree at `history/`, refits, builds the site, commits the new snapshot to `data` and creates release `snapshot-<id>` with the input zip. The `deploy` job (`pages: write`, `id-token: write`) deploys. Scheduled runs with unchanged input don't deploy.
 - `.github/workflows/ci.yml`: lint, types, tests and build for both sides.
 
+## Where the look lives (keep library upgrades easy)
+
+Style through the libraries' public surfaces only: the Mantine theme, CSS variables, `defaultProps`, per-instance props or style props, and Recharts props. Don't wrap, fork or re-implement library components, and don't target their internal class names (`.mantine-*`, `.m_*`, `.recharts-*`). Custom components must be thin compositions of library parts.
+
+- `web/src/theme.ts` is the theme layer and the first place to look. `createTheme` holds the fonts, primary colour, radius and component `defaultProps`: Anchor inherits size; Badge, Button, ActionIcon, Chip, TextInput, MultiSelect and SegmentedControl default to an `xl` radius; Tooltip has an arrow; Drawer a `lg` radius. `cssVariablesResolver` sets the body and dimmed colours, the placeholder colour, the page surfaces `--eci-surface` / `--eci-hero-surface`, the background dot colour, the capsule opacity and `--drawer-size-sheet` (so `<Drawer size="sheet">` sizes to its content).
+- `web/src/config.ts` holds the data-facing choices: lab colours and logos, weights labels and colours, top-N, page size and the "new" window.
+- `web/src/global.css` holds page-level rules only: the cascade-layer order for Mantine and mantine-datatable, `color-scheme` keyed on Mantine's documented `data-mantine-color-scheme` attribute, the body dot grid and the `.num` tabular-figures helper.
+- CSS modules (`App.module.css`, `components/*.module.css`) style only this project's own elements: page sections, the hero ring, the chart tick layout, the legend key and the About blocks. They read `--mantine-*` / `--eci-*` variables and never select library internals.
+- Recharts customisation is all through documented props: a `tick` render function (a `foreignObject` with Mantine parts), a `shape` render function on a range `Bar` for the CI capsules, `ReferenceArea` for the tie band, a `ZAxis` range for dot size, and `LabelList content` for frontier labels.
+- Library-part compositions: ModelBadges (Badge + Tooltip), the table CI capsule (Progress.Root and Sections), LabLegend (Chip + ColorSwatch), Insights (Progress, Group, Text), FilterBar (SegmentedControl, MultiSelect, RangeSlider, Drawer) and About (CopyButton, Code). The table is mantine-datatable with only its public props.
+- On a Mantine or Recharts major upgrade, check theme.ts first (`extend`/`defaultProps` names, `CSSVariablesResolver`, the Drawer size variable) and then the Recharts render-prop signatures (`TickProps`, `ShapeProps` and `LabelProps` in Leaderboard.tsx and Timeline.tsx).
+
 ## Maintenance
 
 - **Bumping eci-public** is deliberate: change the commit in `pyproject.toml`, run `uv lock`, run the pipeline locally, and check the drift summary. The page reads the commit from the installed package's `direct_url.json`, so there is nothing else to update.

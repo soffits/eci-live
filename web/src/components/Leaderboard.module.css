@@ -88,7 +88,3 @@
   color: var(--mantine-primary-color-filled);
   background: var(--mantine-primary-color-light);
 }
-
-:root[data-mantine-color-scheme="dark"] .capsule:not([stroke-dasharray]) {
-  fill-opacity: 0.5;
-}

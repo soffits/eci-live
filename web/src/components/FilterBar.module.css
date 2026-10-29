@@ -11,22 +11,12 @@
   min-width: 0;
 }
 
-.labs::placeholder,
-.labs input::placeholder {
-  color: var(--mantine-color-text);
-  opacity: 0.75;
-}
-
 /* Centre the slider on the same line as the other controls. */
 .sliderBox {
   display: flex;
   align-items: center;
   height: var(--control-height, 36px);
   padding-inline: 8px;
-}
-
-.sliderBox > * {
-  flex: 1;
 }
 
 .countBox {

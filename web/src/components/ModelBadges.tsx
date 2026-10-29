@@ -1,12 +1,13 @@
-import { Text, Tooltip } from "@mantine/core";
+import { Badge, Group, Tooltip } from "@mantine/core";
 import { NEW_WITHIN_DAYS } from "../config";
 import type { Row } from "../data";
-import classes from "./ModelBadges.module.css";
 
 export function NewMark() {
   return (
     <Tooltip label={`Released in the ${NEW_WITHIN_DAYS} days before this snapshot`}>
-      <span className={classes.new}>new</span>
+      <Badge size="xs" variant="outline" color="gray" tt="none">
+        new
+      </Badge>
     </Tooltip>
   );
 }
@@ -19,11 +20,17 @@ export function PreviewMark({ row, compact = false }: { row: Row; compact?: bool
       multiline
       w={260}
     >
-      <span className={classes.preview}>
+      <Badge
+        size="xs"
+        variant="light"
+        color="violet"
+        tt="none"
+        bd="1px dashed var(--mantine-color-violet-filled)"
+      >
         {compact
           ? `Not on Epoch · ${row.benchmarks} bm`
           : `Not on Epoch yet · ${row.benchmarks} benchmarks`}
-      </span>
+      </Badge>
     </Tooltip>
   );
 }
@@ -31,9 +38,9 @@ export function PreviewMark({ row, compact = false }: { row: Row; compact?: bool
 export function ModelBadges({ row }: { row: Row }) {
   if (!row.isNew && row.onEpoch) return null;
   return (
-    <Text span className={classes.group}>
+    <Group gap={6}>
       {row.isNew && <NewMark />}
       {!row.onEpoch && <PreviewMark row={row} />}
-    </Text>
+    </Group>
   );
 }
