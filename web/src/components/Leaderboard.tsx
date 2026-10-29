@@ -5,7 +5,7 @@ import { niceTicks } from "../scale";
 import { ChartTooltip } from "./ChartTooltip";
 import { LabLogo, useLabColor } from "./LabLogo";
 import classes from "./Leaderboard.module.css";
-import { AddedMark, NewMark, PreviewMark } from "./ModelBadges";
+import { AddedMark, MarkDots, MarkDotsKey, NewMark, PreviewMark } from "./ModelBadges";
 import { ModelLink, useModelNav } from "./ModelLink";
 
 const ROW_HEIGHT = 34;
@@ -14,7 +14,7 @@ const STACKED_ROW_HEIGHT = 56;
 const STACKED_NAME_HEIGHT = 28;
 /** Centre of the capsule below the name, leaving a clear gap before the next row. */
 const STACKED_CAPSULE_Y = 40;
-const STACKED_BELOW_PX = 560;
+const STACKED_BELOW_PX = 720;
 /** The score column right of the plot, so numbers line up and no gridline crosses them. */
 const VALUE_COLUMN = 64;
 const STACKED_SIDE = 14;
@@ -125,8 +125,14 @@ export function Leaderboard({
           {added.has(row.name) && onRemove && (
             <AddedMark name={row.name} onRemove={() => onRemove(row.name)} />
           )}
-          {row.isNew && row.onEpoch && <NewMark />}
-          {!row.onEpoch && <PreviewMark row={row} compact />}
+          {stacked ? (
+            <MarkDots row={row} />
+          ) : (
+            <>
+              {row.isNew && row.onEpoch && <NewMark />}
+              {!row.onEpoch && <PreviewMark row={row} compact />}
+            </>
+          )}
           {stacked && <span className={classes.stackedValue}>{row.eci.toFixed(1)}</span>}
         </div>
       </foreignObject>
@@ -217,6 +223,7 @@ export function Leaderboard({
         >
           {/* On phones, dash the gridlines with the row period so they skip the name lines. */}
           <CartesianGrid
+            xAxisId="top"
             horizontal={false}
             stroke="var(--eci-grid)"
             strokeDasharray={
@@ -289,7 +296,14 @@ export function Leaderboard({
 }
 
 /** How to read the leaderboard. */
-export function LeaderboardKey({ intervals = true }: { intervals?: boolean }) {
+export function LeaderboardKey({
+  intervals = true,
+  dots = false,
+}: {
+  intervals?: boolean;
+  /** Phones mark new and unpublished models with dots; explain them. */
+  dots?: boolean;
+}) {
   return (
     <div className={`${classes.key} chrome`}>
       <span>
@@ -299,13 +313,17 @@ export function LeaderboardKey({ intervals = true }: { intervals?: boolean }) {
         </svg>
         {intervals ? "estimate and 90% CI" : "point estimate (no interval for custom sets)"}
       </span>
-      <span>
-        <svg width="34" height="14" aria-hidden>
-          <rect x="1" y="3" width="32" height="8" rx="4" className={classes.keyPreview} />
-          <circle cx="15" cy="7" r="4" className={classes.keyHollow} />
-        </svg>
-        not on Epoch yet
-      </span>
+      {dots ? (
+        <MarkDotsKey />
+      ) : (
+        <span>
+          <svg width="34" height="14" aria-hidden>
+            <rect x="1" y="3" width="32" height="8" rx="4" className={classes.keyPreview} />
+            <circle cx="15" cy="7" r="4" className={classes.keyHollow} />
+          </svg>
+          not on Epoch yet
+        </span>
+      )}
       <span>
         <span className={classes.keyTie}>=1</span>
         statistically tied for #1

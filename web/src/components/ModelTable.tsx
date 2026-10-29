@@ -6,7 +6,7 @@ import { TABLE_PAGE_SIZE, WEIGHTS } from "../config";
 import type { Row } from "../data";
 import { formatDate, formatRange, noInterval } from "../format";
 import { LabLogo, useLabColor } from "./LabLogo";
-import { NewMark, PreviewMark } from "./ModelBadges";
+import { MarkDots, NewMark, PreviewMark } from "./ModelBadges";
 import { ModelLink } from "./ModelLink";
 import classes from "./ModelTable.module.css";
 
@@ -68,20 +68,6 @@ function SortIcon({ path }: { path: string }) {
     >
       <path d={path} />
     </svg>
-  );
-}
-
-/** On phones the "new" and "not on Epoch" marks are dots, so rows stay one line tall. */
-function MarkDots({ row }: { row: Row }) {
-  if (!row.isNew && row.onEpoch) return null;
-  const label = [row.isNew && "new", !row.onEpoch && "not on Epoch yet"].filter(Boolean).join(", ");
-  return (
-    <Tooltip label={label}>
-      <span className={classes.dots} role="img" aria-label={label}>
-        {row.isNew && <span className={classes.newDot} />}
-        {!row.onEpoch && <span className={classes.previewDot} />}
-      </span>
-    </Tooltip>
   );
 }
 
@@ -161,7 +147,7 @@ export function ModelTable({
         classNames={{ pagination: `chrome ${classes.pagination}` }}
         maxHeight={narrow ? undefined : "78vh"}
         verticalSpacing={narrow ? 10 : 8}
-        horizontalSpacing={narrow ? 8 : "sm"}
+        horizontalSpacing={narrow ? 6 : "sm"}
         verticalAlign="center"
         sortStatus={sort}
         sortIcons={{
@@ -205,11 +191,11 @@ export function ModelTable({
             accessor: "name",
             title: "Model",
             sortable: true,
-            noWrap: true,
+            noWrap: !narrow,
             render: (r) => (
               <Group gap={8} wrap="nowrap">
                 <LabLogo lab={r.lab} />
-                <Text size="sm" fw={600} className={classes.name}>
+                <Text size="sm" fw={600} className={narrow ? undefined : classes.name}>
                   <ModelLink name={r.name} />
                 </Text>
                 {narrow ? (

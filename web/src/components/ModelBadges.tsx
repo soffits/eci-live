@@ -1,6 +1,7 @@
 import { Badge, CloseButton, Group, Tooltip } from "@mantine/core";
 import { NEW_WITHIN_DAYS } from "../config";
 import type { Row } from "../data";
+import classes from "./ModelBadges.module.css";
 
 export function NewMark() {
   return (
@@ -51,5 +52,35 @@ export function ModelBadges({ row }: { row: Row }) {
       {row.isNew && <NewMark />}
       {!row.onEpoch && <PreviewMark row={row} />}
     </Group>
+  );
+}
+
+/** On phones the "new" and "not on Epoch" marks are dots, so rows stay one line tall. */
+export function MarkDots({ row }: { row: Row }) {
+  if (!row.isNew && row.onEpoch) return null;
+  const label = [row.isNew && "new", !row.onEpoch && "not on Epoch yet"].filter(Boolean).join(", ");
+  return (
+    <Tooltip label={label}>
+      <span className={classes.dots} role="img" aria-label={label}>
+        {row.isNew && <span className={classes.newDot} />}
+        {!row.onEpoch && <span className={classes.previewDot} />}
+      </span>
+    </Tooltip>
+  );
+}
+
+/** Key entries for the phone marks. */
+export function MarkDotsKey() {
+  return (
+    <>
+      <span>
+        <span className={classes.newDot} />
+        new
+      </span>
+      <span>
+        <span className={classes.previewDot} />
+        not on Epoch yet
+      </span>
+    </>
   );
 }

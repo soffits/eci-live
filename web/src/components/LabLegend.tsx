@@ -1,4 +1,4 @@
-import { Chip, ColorSwatch, Group } from "@mantine/core";
+import { Chip, ColorSwatch, Group, ScrollArea } from "@mantine/core";
 import { hasLabColor } from "../config";
 import { legendEntries } from "../legend";
 import { useLabColor } from "./LabLogo";
@@ -7,18 +7,20 @@ interface Props {
   labs: string[];
   selected: string[];
   onToggle: (labs: string[]) => void;
+  /** One scrolling row instead of wrapping, for phones. */
+  scroll?: boolean;
 }
 
 /** Colour key for the lab colours, one chip per colour drawn; a chip toggles its labs in
  * the shared lab filter. */
-export function LabLegend({ labs, selected, onToggle }: Props) {
+export function LabLegend({ labs, selected, onToggle, scroll = false }: Props) {
   const colorOf = useLabColor();
-  return (
-    <Group gap={6}>
+  const chips = (
+    <Group gap={6} wrap={scroll ? "nowrap" : "wrap"} pb={scroll ? 10 : 0}>
       {legendEntries(labs, colorOf, hasLabColor).map((entry) => (
         <Chip
           key={entry.color}
-          size="xs"
+          size={scroll ? "sm" : "xs"}
           variant="outline"
           checked={entry.labs.every((lab) => selected.includes(lab))}
           onChange={() => onToggle(entry.labs)}
@@ -32,5 +34,12 @@ export function LabLegend({ labs, selected, onToggle }: Props) {
         </Chip>
       ))}
     </Group>
+  );
+  return scroll ? (
+    <ScrollArea type="auto" scrollbarSize={6} offsetScrollbars="x">
+      {chips}
+    </ScrollArea>
+  ) : (
+    chips
   );
 }

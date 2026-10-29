@@ -314,7 +314,7 @@ export function App({
                     <ModelPicker models={all} value={pickedKnown} onChange={setPicked} />
                   </Box>
                   <Box mb="xs">
-                    <LeaderboardKey intervals={preset.intervals} />
+                    <LeaderboardKey intervals={preset.intervals} dots={narrow} />
                   </Box>
                   {chart.rows.length > 0 ? (
                     <Leaderboard
@@ -388,6 +388,7 @@ export function App({
                     labs={labs.filter((lab) => viewRows.some((r) => r.lab === lab))}
                     selected={filters.labs}
                     onToggle={toggleLabs}
+                    scroll={narrow}
                   />
                 ) : (
                   <ColorKey entries={groupKey(viewRows, colorBy)} />

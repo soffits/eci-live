@@ -104,6 +104,7 @@ export function Interpreting({
         clearable
         hidePickedOptions
         size={narrow ? "md" : "sm"}
+        radius="lg"
         maw={720}
       />
       <div ref={ref}>

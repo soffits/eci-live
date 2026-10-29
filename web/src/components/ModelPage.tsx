@@ -14,7 +14,7 @@ import {
   Text,
   Title,
 } from "@mantine/core";
-import { useDocumentTitle } from "@mantine/hooks";
+import { useDocumentTitle, useMediaQuery } from "@mantine/hooks";
 import { Suspense, use } from "react";
 import {
   Area,
@@ -92,7 +92,7 @@ function Headline({ row, site }: { row: Row; site: SiteData }) {
   const ci =
     row.ci_low === null || row.ci_high === null
       ? "a scale anchor, fixed by definition"
-      : `90% interval ${row.ci_low.toFixed(1)}–${row.ci_high.toFixed(1)}`;
+      : `90% CI ${row.ci_low.toFixed(1)}–${row.ci_high.toFixed(1)}`;
   const rankRange =
     row.rank_low === null || row.rank_high === null
       ? "no rank interval"
@@ -404,6 +404,7 @@ function PullBar({ points }: { points: number }) {
 }
 
 function HowComputed({ row, detail, site }: { row: Row; detail: ModelDetail; site: SiteData }) {
+  const narrow = useMediaQuery("(max-width: 48em)") ?? false;
   const points = fitPoints(row.eci, detail.fit);
   const commit = site.latest.fit.eci_public_commit;
   return (
@@ -449,12 +450,12 @@ function HowComputed({ row, detail, site }: { row: Row; detail: ModelDetail; sit
           <FitChart points={points} />
         </Grid.Col>
       </Grid>
-      <Table.ScrollContainer minWidth={640}>
+      <Table.ScrollContainer minWidth={narrow ? 0 : 640}>
         <Table
           highlightOnHover
           stickyHeader
           verticalSpacing={8}
-          horizontalSpacing="md"
+          horizontalSpacing={narrow ? "xs" : "md"}
           layout="fixed"
           className="num"
           borderColor="var(--eci-grid)"
@@ -462,19 +463,19 @@ function HowComputed({ row, detail, site }: { row: Row; detail: ModelDetail; sit
           <Table.Thead>
             <Table.Tr>
               <Table.Th>Benchmark</Table.Th>
-              <Table.Th ta="right" w={100}>
+              <Table.Th ta="right" w={100} visibleFrom="sm">
                 Difficulty
               </Table.Th>
-              <Table.Th ta="right" w={80}>
+              <Table.Th ta="right" w={80} visibleFrom="sm">
                 Slope
               </Table.Th>
-              <Table.Th ta="right" w={96}>
-                Predicted
+              <Table.Th ta="right" w={narrow ? 56 : 96}>
+                {narrow ? "Pred." : "Predicted"}
               </Table.Th>
-              <Table.Th ta="right" w={80}>
-                Actual
+              <Table.Th ta="right" w={narrow ? 56 : 80}>
+                {narrow ? "Act." : "Actual"}
               </Table.Th>
-              <Table.Th ta="right" w={88}>
+              <Table.Th ta="right" w={narrow ? 72 : 88}>
                 Pull
               </Table.Th>
               <Table.Th w="22%" visibleFrom="md">
@@ -620,6 +621,9 @@ function Results({ detail }: { detail: ModelDetail }) {
         it for the column it comes from), its standard error where measured, and the 0–100% score
         the fit sees after rescaling (random guessing = 0%, the benchmark's ceiling = 100%). Empty
         columns are left out.
+      </Text>
+      <Text size="sm" c="dimmed" hiddenFrom="sm" className="chrome">
+        The tables scroll sideways for more columns →
       </Text>
       <div>
         <Title order={3} className={classes.subTitle}>
