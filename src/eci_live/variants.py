@@ -20,8 +20,12 @@ from eci_live import domain, settings
 from eci_live.refit import Fit, lab_of, rank_stats, weights_of
 from eci_live.schema import ModelScore
 
-# Effort levels Epoch's version ids end in, lowest first.
-NONE, UNKNOWN = 0, 1
+# Effort ranks, lowest first. A version id without a setting (UNRECORDED) ranks just above
+# "none". A thinking budget ("_16K") ranks above minimal and low (deliberately reduced
+# reasoning); thinking at an unrecorded level ("_unknown", "_thinking", usually the
+# provider's default) above the budgets; the provider's own medium and up above all of them
+# (Anthropic's "high" has no budget cap).
+NONE, UNRECORDED, BUDGET_BASE, THINKING = 0, 1, 10, 999
 NAMED = {
     "none": NONE,
     "minimal": 2,
@@ -31,9 +35,6 @@ NAMED = {
     "xhigh": 1002,
     "max": 1003,
 }
-# A thinking budget ("_16K") ranks above minimal and low (deliberately reduced reasoning) and
-# below medium and up (the provider's own levels; Anthropic's "high" has no budget cap).
-BUDGET_BASE = 10
 SUFFIX = re.compile(r"_(pro)?([a-z]+|\d+k)$", re.IGNORECASE)
 NO_THINKING = re.compile(r"\(no thinking\)\s*$", re.IGNORECASE)
 
@@ -41,23 +42,22 @@ NO_THINKING = re.compile(r"\(no thinking\)\s*$", re.IGNORECASE)
 def effort(version: str, display_name: str | None) -> tuple[str | None, int, bool]:
     """(label, rank, pro) of a version's reasoning setting, from its id.
 
-    Higher rank means more reasoning effort. Versions that don't say (no suffix,
-    "_unknown", "_thinking") rank as UNKNOWN, just above "none".
+    Higher rank means more reasoning effort (see the ranks above).
     """
     match = SUFFIX.search(version)
     if match is None:
         if display_name and NO_THINKING.search(display_name):
             return "no thinking", NONE, False
-        return None, UNKNOWN, False
+        return None, UNRECORDED, False
     pro, level = bool(match.group(1)), match.group(2).lower()
     if level.endswith("k") and level[:-1].isdigit():
-        label, rank = f"{level} thinking", BUDGET_BASE + int(level[:-1])
+        label, rank = f"{level} thinking", min(BUDGET_BASE + int(level[:-1]), THINKING - 1)
     elif level in NAMED:
         label, rank = level, NAMED[level]
     elif level in ("unknown", "thinking"):
-        label, rank = ("unknown thinking" if level == "unknown" else "thinking"), UNKNOWN
+        label, rank = ("unknown thinking" if level == "unknown" else "thinking"), THINKING
     else:
-        return None, UNKNOWN, False
+        return None, UNRECORDED, False
     return (f"pro, {label}" if pro else label), rank, pro
 
 

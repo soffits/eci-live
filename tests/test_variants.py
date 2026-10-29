@@ -18,8 +18,8 @@ from eci_live import domain, refit, settings, variants
         ("gpt-5-2025-08-07_minimal", None, ("minimal", 2, False)),
         ("claude-opus-4-5-20251101_16K", None, ("16k thinking", 26, False)),
         ("claude-opus-4-5-20251101", "Claude Opus 4.5 (no thinking)", ("no thinking", 0, False)),
-        ("gpt-6-astra_unknown", None, ("unknown thinking", 1, False)),
-        ("DeepSeek-V3.1_thinking", None, ("thinking", 1, False)),
+        ("gpt-6-astra_unknown", None, ("unknown thinking", 999, False)),
+        ("DeepSeek-V3.1_thinking", None, ("thinking", 999, False)),
         ("gpt-5.6-sol_promax", "GPT-5.6 Sol (pro, max)", ("pro, max", 1003, True)),
         ("Mistral-Large-Instruct-2407", None, (None, 1, False)),
         ("some_model_name", None, (None, 1, False)),
@@ -32,8 +32,8 @@ def test_effort_is_read_from_the_version_id(
 
 
 def test_effort_order() -> None:
-    order = ["_none", "_unknown", "_minimal", "_low", "_8K", "_64K", "_medium", "_high", "_xhigh"]
-    ranks = [variants.effort(f"m{s}", None)[1] for s in [*order, "_max"]]
+    order = ["_none", "", "_minimal", "_low", "_8K", "_64K", "_unknown", "_medium", "_high"]
+    ranks = [variants.effort(f"m{s}", None)[1] for s in [*order, "_xhigh", "_max"]]
     assert ranks == sorted(ranks) and len(set(ranks)) == len(ranks)
 
 

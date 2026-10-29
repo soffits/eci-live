@@ -43,8 +43,9 @@ class ModelScore(TypedDict):
     # The reasoning setting as written in the version id ("max", "16k thinking", "pro, max"),
     # or None where the id doesn't say.
     effort: str | None
-    # Higher is more reasoning effort: none 0, unknown 1, minimal 2, low 3, a thinking
-    # budget 10 + thousands of tokens, medium 1000, high 1001, xhigh 1002, max 1003.
+    # Higher is more reasoning effort: none 0, not recorded 1, minimal 2, low 3, a thinking
+    # budget 10 + thousands of tokens, thinking at an unrecorded level 999, medium 1000,
+    # high 1001, xhigh 1002, max 1003.
     effort_rank: int
     # Pro mode (parallel sampling) of the model, rather than a reasoning-effort level.
     pro: bool
