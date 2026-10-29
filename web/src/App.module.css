@@ -1,0 +1,124 @@
+.page {
+  position: relative;
+}
+
+.spectrum {
+  display: flex;
+  height: 5px;
+}
+
+.headline {
+  font-size: clamp(1.75rem, 4vw, 3rem);
+  font-weight: 850;
+  line-height: 1.05;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+}
+
+.gradientText {
+  background: linear-gradient(90deg, #d97757, #ec4899 40%, #6366f1 75%, #06b6d4);
+  background-clip: text;
+  color: transparent;
+}
+
+.balance {
+  text-wrap: balance;
+}
+
+.lede {
+  font-size: clamp(var(--mantine-font-size-md), 1.6vw, var(--mantine-font-size-lg));
+}
+
+.eyebrow {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--mantine-primary-color-filled);
+}
+
+.sectionTitle {
+  font-size: clamp(1.3rem, 2.2vw, 1.6rem);
+  letter-spacing: -0.02em;
+}
+
+.toolbar {
+  margin-bottom: var(--mantine-spacing-md);
+}
+
+/* The answer: the one panel with a vivid gradient ring and a glow. */
+.hero {
+  margin-bottom: 40px;
+  border: 2px solid transparent;
+  border-radius: 24px;
+  background:
+    linear-gradient(var(--eci-hero-surface), var(--eci-hero-surface)) padding-box,
+    linear-gradient(120deg, #d97757, #ec4899, #8b5cf6, #4285f4, #06b6d4, #10a37f) border-box;
+  box-shadow:
+    0 40px 80px -48px rgb(139 92 246 / 55%),
+    0 24px 60px -40px rgb(236 72 153 / 45%);
+}
+
+.chartCol {
+  padding: var(--mantine-spacing-lg);
+}
+
+.insightCol {
+  padding: var(--mantine-spacing-lg);
+  border-left: 1px solid var(--mantine-color-default-border);
+}
+
+/* Charts: plain cards, quieter than the hero. */
+.card {
+  margin-bottom: 32px;
+  padding: var(--mantine-spacing-xl);
+  border: 1px solid var(--mantine-color-default-border);
+  border-radius: 20px;
+  background: var(--eci-surface);
+}
+
+.pulse {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 0 0 rgb(16 185 129 / 60%);
+  animation: pulse 2.4s infinite;
+}
+
+@keyframes pulse {
+  70% {
+    box-shadow: 0 0 0 10px rgb(16 185 129 / 0%);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgb(16 185 129 / 0%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse {
+    animation: none;
+  }
+}
+
+@media (max-width: 75em) {
+  .insightCol {
+    border-left: 0;
+    border-top: 1px solid var(--mantine-color-default-border);
+  }
+}
+
+@media (max-width: 36em) {
+  .chartCol,
+  .insightCol {
+    padding: var(--mantine-spacing-sm);
+  }
+
+  .card {
+    padding: var(--mantine-spacing-md);
+  }
+
+  .hero {
+    border-radius: 18px;
+  }
+}

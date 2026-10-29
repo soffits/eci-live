@@ -1,0 +1,22 @@
+/* Page-level rules only. Colours and surfaces are CSS variables from theme.ts. */
+@layer mantine, mantine-datatable;
+
+/* Mantine marks the scheme on <html>; native controls and scrollbars should follow it. */
+:root[data-mantine-color-scheme="light"] {
+  color-scheme: light;
+}
+
+:root[data-mantine-color-scheme="dark"] {
+  color-scheme: dark;
+}
+
+body {
+  background-image: radial-gradient(var(--eci-page-dots) 1px, transparent 1px);
+  background-size: 22px 22px;
+  font-feature-settings: "ss01", "cv11";
+  -webkit-font-smoothing: antialiased;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+}

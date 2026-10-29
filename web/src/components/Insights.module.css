@@ -1,0 +1,17 @@
+.block {
+  min-width: 0;
+}
+
+.eyebrow {
+  margin-bottom: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--mantine-color-dimmed);
+}
+
+.labRow {
+  padding-left: 10px;
+  border-left: 3px solid;
+}

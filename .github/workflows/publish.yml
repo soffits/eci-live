@@ -1,0 +1,100 @@
+name: Publish
+
+# Refit ECI from Epoch AI's daily zip, keep a snapshot if the input changed,
+# and deploy the site. Everything that is published is computed here.
+on:
+  schedule:
+    - cron: "17 5 * * *" # Epoch rebuilds the zip around 03:15 UTC
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions: {}
+
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Refit and build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write # push to the data branch and attach the input zip to a release
+    outputs:
+      deploy: ${{ steps.refit.outputs.snapshot != '' || github.event_name != 'schedule' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Check out snapshot history (data branch)
+        run: |
+          if git ls-remote --exit-code --heads origin data > /dev/null; then
+            git fetch --depth=1 origin data
+            git worktree add --detach history FETCH_HEAD
+          else
+            git worktree add --orphan -b data history
+          fi
+
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+
+      - name: Refit ECI and check drift against Epoch's scores
+        id: refit
+        run: uv run --locked eci-live --history history --site-json web/public/eci.json
+
+      - name: Refuse to publish numbers without full provenance
+        run: |
+          jq -e '.latest.build.run_url and .latest.build.commit and .latest.input.archive_url' \
+            web/public/eci.json > /dev/null
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Build site
+        working-directory: web
+        run: |
+          npm ci
+          npm run build
+
+      - name: Record snapshot and archive its input
+        if: steps.refit.outputs.snapshot != ''
+        env:
+          SNAPSHOT: ${{ steps.refit.outputs.snapshot }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git -C history add snapshots
+          git -C history \
+            -c user.name="github-actions[bot]" \
+            -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit --quiet --message "data: snapshot $SNAPSHOT"
+          gh auth setup-git
+          git -C history push origin HEAD:refs/heads/data
+          gh release create "snapshot-$SNAPSHOT" build/benchmark_data.zip \
+            --target data \
+            --title "Snapshot $SNAPSHOT" \
+            --notes "Input zip (Epoch AI, CC BY 4.0) for ECI snapshot $SNAPSHOT, produced by $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID."
+
+      - name: Upload site
+        if: steps.refit.outputs.snapshot != '' || github.event_name != 'schedule'
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: web/dist
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    if: needs.build.outputs.deploy == 'true'
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

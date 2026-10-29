@@ -1,0 +1,26 @@
+.bar {
+  --control-height: 36px;
+}
+
+.control {
+  min-height: var(--control-height);
+}
+
+.bar .grow {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+/* Centre the slider on the same line as the other controls. */
+.sliderBox {
+  display: flex;
+  align-items: center;
+  height: var(--control-height, 36px);
+  padding-inline: 8px;
+}
+
+.countBox {
+  display: flex;
+  align-items: center;
+  height: var(--control-height);
+}

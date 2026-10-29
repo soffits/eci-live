@@ -1,0 +1,90 @@
+.tick {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 100%;
+}
+
+.tick > * {
+  flex: none;
+}
+
+.rank {
+  width: 2.1em;
+  font-size: var(--mantine-font-size-xs);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--mantine-color-dimmed);
+  text-align: right;
+}
+
+.rank[data-tied] {
+  color: var(--mantine-primary-color-filled);
+}
+
+.tick > .name {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--mantine-font-size-sm);
+  font-weight: 600;
+}
+
+.stackedValue {
+  margin-left: auto;
+  font-size: var(--mantine-font-size-sm);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.value {
+  fill: var(--mantine-color-text);
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  font-size: var(--mantine-font-size-xs);
+  color: var(--mantine-color-dimmed);
+}
+
+.key > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.keyCapsule {
+  fill: var(--mantine-color-dimmed);
+  fill-opacity: 0.35;
+}
+
+.keyDot {
+  fill: var(--mantine-color-text);
+}
+
+.keyPreview {
+  fill: none;
+  stroke: var(--mantine-color-dimmed);
+  stroke-dasharray: 4 3;
+}
+
+.keyHollow {
+  fill: var(--mantine-color-body);
+  stroke: var(--mantine-color-text);
+  stroke-width: 2;
+}
+
+.keyTie {
+  padding: 0 6px;
+  border-radius: 4px;
+  font-weight: 700;
+  color: var(--mantine-primary-color-filled);
+  background: var(--mantine-primary-color-light);
+}

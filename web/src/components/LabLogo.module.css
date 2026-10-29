@@ -1,0 +1,18 @@
+.logo {
+  display: inline-block;
+  flex: none;
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+}
+
+.initial {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: white;
+  font-weight: 700;
+  line-height: 1;
+}
