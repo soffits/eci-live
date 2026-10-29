@@ -1,6 +1,6 @@
 """Shapes of the published JSON (mirrored by `web/src/data.ts`)."""
 
-from typing import Literal, TypedDict
+from typing import Literal, NotRequired, TypedDict
 
 Weights = Literal["open", "closed", "unknown"]
 
@@ -17,6 +17,9 @@ class FitInfo(TypedDict):
     eci_public_commit: str
     bootstrap_samples: int
     bootstrap_seed: int
+    # Seeded chunks the bootstrap ran in (seeds derived from bootstrap_seed). Snapshots
+    # from before chunking ran it as one serial chain and have no such field.
+    bootstrap_chunks: NotRequired[int]
     ci_level: float
 
 

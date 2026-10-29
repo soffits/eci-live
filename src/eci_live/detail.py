@@ -14,14 +14,10 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-from eci import (
-    download_benchmark_data,
-    fit_eci_model,
-    load_benchmark_metadata,
-    prepare_benchmark_data,
-)
+from eci import download_benchmark_data, load_benchmark_metadata
 from eci.dataloader import BENCHMARK_METADATA_FILENAME, MODEL_METADATA_FILENAME
 
+from eci_live import refit
 from eci_live.schema import (
     BenchmarkResult,
     FitTerm,
@@ -269,13 +265,16 @@ def predicted(eci: float, edi: float, slope: float) -> float:
     return _sigmoid(slope * (eci - edi))
 
 
-def build(zip_path: Path, snapshots: list[Snapshot]) -> dict[str, ModelDetail]:
-    """Detail data for every model of the latest snapshot, keyed by model name."""
+def build(
+    zip_path: Path, snapshots: list[Snapshot], fitted: refit.Fit | None = None
+) -> dict[str, ModelDetail]:
+    """Detail data for every model of the latest snapshot, keyed by model name. Reuses
+    `fitted` when this run already fit `zip_path`; otherwise runs the central fit."""
     latest = snapshots[-1]
     dfs = download_benchmark_data(zip_path)
     metadata = load_benchmark_metadata(dfs)
-    fit_input = prepare_benchmark_data(zip_path)
-    eci_df, edi_df, _ = fit_eci_model(fit_input, bootstrap_samples=0)
+    result = fitted or refit.fit(zip_path, bootstrap_samples=0)
+    fit_input, eci_df, edi_df = result.data, result.eci, result.edi
 
     central = eci_df.set_index("Model")["eci"]
     published = {m["name"]: m["eci"] for m in latest["models"]}

@@ -33,6 +33,8 @@ export interface Snapshot {
     eci_public_commit: string;
     bootstrap_samples: number;
     bootstrap_seed: number;
+    /** Seeded chunks the bootstrap ran in; absent on snapshots from before chunking. */
+    bootstrap_chunks?: number;
     ci_level: number;
   };
   build: { commit: string | null; run_url: string | null };

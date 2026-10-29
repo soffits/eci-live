@@ -39,13 +39,17 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def _new_snapshot(zip_path: Path, info: InputInfo, bootstrap_samples: int) -> Snapshot:
-    fit = refit.fit_scores(zip_path, bootstrap_samples)
+def _new_snapshot(
+    zip_path: Path, info: InputInfo, bootstrap_samples: int
+) -> tuple[Snapshot, refit.Fit]:
+    result = refit.fit(zip_path, bootstrap_samples)
     official = refit.official_scores(zip_path)
-    models = refit.model_scores(fit, official, refit.version_metadata(zip_path))
+    models = refit.model_scores(
+        refit.fit_scores(result), official, refit.version_metadata(zip_path)
+    )
     drift = check_drift(models, set(official.index), settings.DRIFT_TOLERANCE)
     snap_id = history.snapshot_id(info["fetched_at"], info["sha256"])
-    return Snapshot(
+    snapshot = Snapshot(
         schema=settings.SCHEMA_VERSION,
         id=snap_id,
         input={**info, "archive_url": provenance.archive_url(snap_id)},
@@ -53,12 +57,14 @@ def _new_snapshot(zip_path: Path, info: InputInfo, bootstrap_samples: int) -> Sn
             eci_public_commit=provenance.eci_public_commit(),
             bootstrap_samples=bootstrap_samples,
             bootstrap_seed=settings.BOOTSTRAP_SEED,
+            bootstrap_chunks=len(refit.chunk_sizes(bootstrap_samples, settings.BOOTSTRAP_CHUNKS)),
             ci_level=settings.CI_LEVEL,
         ),
         build=provenance.build_info(),
         drift=drift,
         models=models,
     )
+    return snapshot, result
 
 
 def _summary(snap: Snapshot) -> str:
@@ -100,11 +106,12 @@ def main(argv: list[str] | None = None) -> int:
     print(f"input {info['sha256']} ({info['url']})")
 
     snapshots = history.load(args.history)
+    fitted: refit.Fit | None = None
     if any(s["input"]["sha256"] == info["sha256"] for s in snapshots):
         print("input unchanged since an earlier snapshot; nothing new to record")
     else:
         try:
-            snap = _new_snapshot(zip_path, info, args.bootstrap_samples)
+            snap, fitted = _new_snapshot(zip_path, info, args.bootstrap_samples)
         except DriftError as error:
             print(f"::error title=Refit drifted from Epoch's scores::{error}", file=sys.stderr)
             return 1
@@ -121,7 +128,9 @@ def main(argv: list[str] | None = None) -> int:
 
     latest_zip = _latest_input(zip_path, info["sha256"], snapshots[-1], args.work_dir)
     try:
-        details = detail.build(latest_zip, snapshots)
+        # The fit runs once per job: a new snapshot's fit is reused; otherwise only the
+        # deterministic central fit runs, to rebuild the latest snapshot's details.
+        details = detail.build(latest_zip, snapshots, fitted if latest_zip == zip_path else None)
     except detail.ReproduceError as error:
         print(
             f"::error title=Detail refit does not reproduce the snapshot::{error}", file=sys.stderr
