@@ -2,17 +2,27 @@
 
 :root[data-mantine-color-scheme="light"] {
   color-scheme: light;
-  --mantine-color-body: #f7f7f8;
+  --mantine-color-body: #f4f4f7;
+  --mantine-color-dimmed: #5f6170;
+  --page-dots: rgb(15 23 42 / 7%);
 }
 
 :root[data-mantine-color-scheme="dark"] {
   color-scheme: dark;
-  --mantine-color-body: #0d0e11;
+  --mantine-color-body: #0a0b0e;
+  --mantine-color-dimmed: #a9abb8;
+  --page-dots: rgb(255 255 255 / 6%);
 }
 
 body {
+  background-image: radial-gradient(var(--page-dots) 1px, transparent 1px);
+  background-size: 22px 22px;
   font-feature-settings: "ss01", "cv11";
   -webkit-font-smoothing: antialiased;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
 }
 
 .recharts-surface:focus,

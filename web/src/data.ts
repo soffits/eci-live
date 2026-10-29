@@ -10,6 +10,10 @@ export interface ModelScore {
   ci_low: number | null;
   ci_high: number | null;
   benchmarks: number;
+  /** 90% bootstrap interval of the model's rank, and the share of refits ranking it first. */
+  rank_low: number | null;
+  rank_high: number | null;
+  p_first: number | null;
   weights: Weights;
   accessibility: string | null;
   official_eci: number | null;
@@ -49,6 +53,8 @@ export interface Row extends ModelScore {
   released: number | null;
   isNew: boolean;
   onEpoch: boolean;
+  /** The bootstrap can't rule out that this model is the true #1. */
+  tiedFirst: boolean;
   delta: number | null;
 }
 
@@ -65,6 +71,7 @@ export function toRows(data: SiteData, newWithinDays: number): Row[] {
       released,
       isNew: released !== null && asOf - released <= newWithinDays * DAY_MS,
       onEpoch: m.official_eci !== null,
+      tiedFirst: m.rank_low === 1,
       delta: previous === undefined ? null : m.eci - previous,
     };
   });

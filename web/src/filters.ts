@@ -1,6 +1,6 @@
-import type { Row } from "./data";
+import type { Row, Weights } from "./data";
 
-export type WeightsFilter = "all" | "open" | "closed";
+export type WeightsFilter = "all" | Weights;
 
 export interface Filters {
   weights: WeightsFilter;
@@ -22,6 +22,11 @@ export function monthLabel(month: number): string {
 export function monthBounds(rows: Row[]): [number, number] {
   const months = rows.flatMap((r) => (r.released === null ? [] : [monthOf(r.released)]));
   return [Math.min(...months), Math.max(...months)];
+}
+
+export function activeFilterCount(f: Filters, bounds: [number, number]): number {
+  const dates = f.months[0] !== bounds[0] || f.months[1] !== bounds[1];
+  return Number(f.weights !== "all") + Number(f.labs.length > 0) + Number(dates);
 }
 
 export function applyFilters(rows: Row[], f: Filters, bounds: [number, number]): Row[] {

@@ -43,6 +43,11 @@ jobs:
         id: refit
         run: uv run --locked eci-live --history history --site-json web/public/eci.json
 
+      - name: Refuse to publish numbers without full provenance
+        run: |
+          jq -e '.latest.build.run_url and .latest.build.commit and .latest.input.archive_url' \
+            web/public/eci.json > /dev/null
+
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version

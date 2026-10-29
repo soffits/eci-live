@@ -2,10 +2,10 @@ import {
   ActionIcon,
   Anchor,
   Badge,
-  Card,
   Container,
+  Divider,
+  Grid,
   Group,
-  SimpleGrid,
   Stack,
   Text,
   Title,
@@ -16,8 +16,10 @@ import { type ReactNode, use, useMemo, useState } from "react";
 import classes from "./App.module.css";
 import { About } from "./components/About";
 import { FilterBar } from "./components/FilterBar";
-import { LabLogo } from "./components/LabLogo";
-import { Leaderboard } from "./components/Leaderboard";
+import { Insights } from "./components/Insights";
+import { LabLegend } from "./components/LabLegend";
+import { useLabColor } from "./components/LabLogo";
+import { Leaderboard, LeaderboardKey } from "./components/Leaderboard";
 import { ModelTable } from "./components/ModelTable";
 import { Timeline } from "./components/Timeline";
 import { LINKS, NEW_WITHIN_DAYS, TOP_N } from "./config";
@@ -25,45 +27,27 @@ import { type SiteData, toRows } from "./data";
 import { applyFilters, type Filters, monthBounds } from "./filters";
 import { formatDate } from "./format";
 
-function Section({
+const LEGEND_LABS = 12;
+
+function SectionTitle({
+  eyebrow,
   title,
   subtitle,
-  children,
 }: {
+  eyebrow: string;
   title: string;
   subtitle: ReactNode;
-  children: ReactNode;
 }) {
   return (
-    <Card withBorder radius="lg" padding="lg" className={classes.card}>
-      <Stack gap={4} mb="md">
-        <Title order={2} size="h3">
-          {title}
-        </Title>
-        <Text size="sm" c="dimmed">
-          {subtitle}
-        </Text>
-      </Stack>
-      {children}
-    </Card>
-  );
-}
-
-function Stat({ label, value, detail }: { label: string; value: ReactNode; detail?: ReactNode }) {
-  return (
-    <Card withBorder radius="lg" padding="md" className={classes.card}>
-      <Text size="xs" fw={700} c="dimmed" tt="uppercase" lts={0.5}>
-        {label}
+    <Stack gap={4} mb="lg">
+      <Text className={classes.eyebrow}>{eyebrow}</Text>
+      <Title order={2} className={classes.sectionTitle}>
+        {title}
+      </Title>
+      <Text c="dimmed" className={classes.balance}>
+        {subtitle}
       </Text>
-      <Text fz={28} fw={800} lh={1.2} mt={4} className={classes.statValue}>
-        {value}
-      </Text>
-      {detail && (
-        <Text size="sm" c="dimmed" mt={2}>
-          {detail}
-        </Text>
-      )}
-    </Card>
+    </Stack>
   );
 }
 
@@ -83,89 +67,77 @@ function ThemeToggle() {
   );
 }
 
+/** A thin band of lab colours, each as wide as the lab's share of scored models. */
+function Spectrum({ labs }: { labs: [string, number][] }) {
+  const colorOf = useLabColor();
+  return (
+    <div className={classes.spectrum} aria-hidden>
+      {labs.map(([lab, count]) => (
+        <span key={lab} style={{ flexGrow: count, background: colorOf(lab) }} />
+      ))}
+    </div>
+  );
+}
+
 export function App({ data }: { data: Promise<SiteData> }) {
   const site = use(data);
   const all = useMemo(() => toRows(site, NEW_WITHIN_DAYS), [site]);
   const bounds = useMemo(() => monthBounds(all), [all]);
-  const labs = useMemo(() => {
+  const labCounts = useMemo(() => {
     const counts = new Map<string, number>();
     for (const r of all) counts.set(r.lab, (counts.get(r.lab) ?? 0) + 1);
-    return [...counts.keys()].sort((a, b) => (counts.get(b) ?? 0) - (counts.get(a) ?? 0));
+    return [...counts.entries()].sort((a, b) => b[1] - a[1]);
   }, [all]);
+  const labs = labCounts.map(([lab]) => lab);
   const [filters, setFilters] = useState<Filters>({ weights: "all", labs: [], months: bounds });
   const rows = useMemo(() => applyFilters(all, filters, bounds), [all, filters, bounds]);
+  const toggleLab = (lab: string) =>
+    setFilters((f) => ({
+      ...f,
+      labs: f.labs.includes(lab) ? f.labs.filter((l) => l !== lab) : [...f.labs, lab],
+    }));
 
   const { latest } = site;
-  const top = all[0];
-  const unpublished = all.filter((r) => !r.onEpoch);
+  const hasPrevious = Object.keys(site.previous_eci).length > 0;
+  const top = rows.slice(0, TOP_N);
 
   return (
     <>
-      <div className={classes.glow} aria-hidden />
-      <Container size="lg" py="lg" className={classes.page}>
-        <Group justify="space-between" mb={48}>
-          <Group gap={10}>
+      <Spectrum labs={labCounts.filter(([lab]) => lab !== "Unknown")} />
+      <Container size="xl" className={classes.page}>
+        <Group justify="space-between" py="md" wrap="nowrap">
+          <Group gap={10} wrap="nowrap">
             <span className={classes.pulse} aria-hidden />
             <Text fw={800} size="lg" lts={-0.3}>
               ECI Live
             </Text>
-            <Badge variant="outline" color="gray" radius="sm" size="sm">
-              unofficial
+            <Badge variant="light" color="gray" radius="sm">
+              Unofficial refit
             </Badge>
           </Group>
-          <Group gap="xs">
+          <Group gap="md" wrap="nowrap">
+            <Text size="sm" c="dimmed" visibleFrom="sm" className="num">
+              Refit {formatDate(latest.input.fetched_at)} · {latest.input.fetched_at.slice(11, 16)}{" "}
+              UTC
+            </Text>
             <Text size="sm" visibleFrom="xs">
-              <Anchor href={LINKS.repo} c="dimmed">
-                Source &amp; data
-              </Anchor>
+              <Anchor href={LINKS.repo}>GitHub</Anchor>
             </Text>
             <ThemeToggle />
           </Group>
         </Group>
 
-        <Stack gap="xs" mb="xl" maw={760}>
+        <Stack gap={6} mt={{ base: "sm", md: "lg" }} mb="lg">
           <Title className={classes.headline}>
-            Which AI model is the most <span className={classes.gradientText}>capable</span>, today?
+            Which AI model is the most <span className={classes.gradientText}>capable</span> today?
           </Title>
-          <Text size="lg" c="dimmed">
-            The Epoch Capabilities Index, refit from Epoch AI's open benchmark data every day,
-            entirely in public CI. Last refit {formatDate(latest.input.fetched_at)}.
+          <Text c="dimmed" className={`${classes.balance} ${classes.lede}`} maw={820}>
+            The Epoch Capabilities Index, refit daily from Epoch AI's open benchmark data in public
+            CI, with 90% confidence intervals on every score and rank.
           </Text>
         </Stack>
 
-        <SimpleGrid cols={{ base: 2, md: 4 }} spacing="md" mb="xl">
-          <Stat
-            label="Top model"
-            value={
-              top && (
-                <Group gap={8} wrap="nowrap">
-                  <LabLogo lab={top.lab} size={24} />
-                  <span className={classes.topModel}>{top.name}</span>
-                </Group>
-              )
-            }
-            detail={top && `${top.eci.toFixed(1)} ECI · ${top.lab}`}
-          />
-          <Stat label="Models scored" value={all.length} detail={`${labs.length} labs`} />
-          <Stat
-            label="Not yet on Epoch"
-            value={unpublished.length}
-            detail={unpublished.map((r) => r.name).join(", ") || "all published"}
-          />
-          <Stat
-            label="Agreement"
-            value={`±${latest.drift.max_abs.toFixed(2)}`}
-            detail={`max gap vs Epoch over ${latest.drift.shared_models} models`}
-          />
-        </SimpleGrid>
-
-        <Card
-          withBorder
-          radius="lg"
-          padding="md"
-          mb="xl"
-          className={`${classes.card} ${classes.sticky}`}
-        >
+        <div className={classes.toolbar}>
           <FilterBar
             value={filters}
             onChange={setFilters}
@@ -174,36 +146,73 @@ export function App({ data }: { data: Promise<SiteData> }) {
             shown={rows.length}
             total={all.length}
           />
-        </Card>
+        </div>
 
-        <Stack gap="xl">
-          <Section
-            title={`Top ${Math.min(TOP_N, rows.length)} by ECI`}
-            subtitle={`Bars show each model's ECI; whiskers its ${Math.round(latest.fit.ci_level * 100)}% bootstrap confidence interval.`}
-          >
-            <Leaderboard rows={rows.slice(0, TOP_N)} />
-          </Section>
-          <Section
+        <section className={classes.hero}>
+          <Grid gap={0}>
+            <Grid.Col span={{ base: 12, lg: 8 }} className={classes.chartCol}>
+              <Group justify="space-between" align="flex-end" mb="sm" gap="xs">
+                <Title order={2} className={classes.sectionTitle}>
+                  Top {top.length} by ECI
+                </Title>
+                <LeaderboardKey />
+              </Group>
+              {top.length > 0 ? (
+                <Leaderboard rows={top} />
+              ) : (
+                <Text c="dimmed" py="xl">
+                  No models match these filters.
+                </Text>
+              )}
+            </Grid.Col>
+            <Grid.Col span={{ base: 12, lg: 4 }} className={classes.insightCol}>
+              <Insights rows={all} snapshot={latest} />
+            </Grid.Col>
+          </Grid>
+        </section>
+
+        <section className={classes.card}>
+          <SectionTitle
+            eyebrow="Trend"
             title="ECI over time"
-            subtitle="Each dot is a model at its release date. The line traces the frontier: every model that set a new record."
-          >
-            <Timeline rows={rows} />
-          </Section>
-          <Section
-            title="All models"
-            subtitle="Search and sort every scored model. Δ is the change since the previous snapshot."
-          >
-            <ModelTable rows={rows} />
-          </Section>
-          <Card withBorder radius="lg" padding="xl" className={classes.card}>
-            <About snapshot={latest} />
-          </Card>
-        </Stack>
+            subtitle="Each dot is a model at its release date. The stepped line is the frontier: every model that set a new record, named where space allows."
+          />
+          <Timeline rows={rows} />
+          <Group justify="space-between" mt="md" gap="sm">
+            <LabLegend
+              labs={labs.slice(0, LEGEND_LABS)}
+              selected={filters.labs}
+              onToggle={toggleLab}
+            />
+          </Group>
+        </section>
 
-        <Text size="xs" c="dimmed" ta="center" mt={48}>
-          Data © Epoch AI, CC BY 4.0 · Method: Ho et al., “A Rosetta Stone for AI Benchmarks” ·
-          Unofficial refit by Sakina, not affiliated with Epoch AI
-        </Text>
+        <section className={classes.card}>
+          <SectionTitle
+            eyebrow="Every model"
+            title="Full table"
+            subtitle={
+              hasPrevious
+                ? "Search, sort and page through every scored model. Δ is the change since the previous snapshot."
+                : "Search, sort and page through every scored model."
+            }
+          />
+          <ModelTable rows={rows} hasPrevious={hasPrevious} />
+        </section>
+
+        <Divider my={56} />
+        <section>
+          <About snapshot={latest} />
+        </section>
+
+        <Group justify="space-between" py={40} gap="xs">
+          <Text size="sm" c="dimmed">
+            ECI Live by Sakina · code AGPL-3.0
+          </Text>
+          <Text size="sm" c="dimmed">
+            <Anchor href={LINKS.repo}>Source and snapshot history</Anchor>
+          </Text>
+        </Group>
       </Container>
     </>
   );

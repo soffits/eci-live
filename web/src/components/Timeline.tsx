@@ -1,21 +1,25 @@
-import { Group, Stack, Text } from "@mantine/core";
-import { useMediaQuery } from "@mantine/hooks";
+import { useElementSize } from "@mantine/hooks";
 import {
   CartesianGrid,
   Cell,
   LabelList,
-  ResponsiveContainer,
   Scatter,
   ScatterChart,
   Tooltip,
   XAxis,
   YAxis,
+  ZAxis,
 } from "recharts";
 import type { Row } from "../data";
+import { niceTicks } from "../scale";
 import { ChartTooltip } from "./ChartTooltip";
-import { LabLogo, useLabColor } from "./LabLogo";
+import { useLabColor } from "./LabLogo";
 
 type Dated = Row & { released: number };
+
+const DAY_MS = 86_400_000;
+const LABEL_SPACING_PX = 120;
+const Y_AXIS_WIDTH = 40;
 
 /** Models that set a new ECI record when they were released, in date order. */
 function frontier(rows: Dated[]): Dated[] {
@@ -27,66 +31,110 @@ function frontier(rows: Dated[]): Dated[] {
   return records;
 }
 
-const LABEL_IF_HELD_DAYS = 90;
-const LEGEND_LABS = 10;
-
-/** Names worth printing on the chart: records that stood for a while, and the current one. */
-function lasting(records: Dated[]): Set<string> {
-  return new Set(
-    records
-      .filter((r, i) => {
-        const next = records[i + 1];
-        return !next || next.released - r.released >= LABEL_IF_HELD_DAYS * 86_400_000;
-      })
-      .map((r) => r.name),
-  );
+/** Record holders to name on the chart, newest first, so labels never crowd each other. */
+function labelled(records: Dated[], minGap: number): Set<string> {
+  const names = new Set<string>();
+  let last = Number.POSITIVE_INFINITY;
+  for (const r of [...records].reverse()) {
+    if (last - r.released >= minGap) {
+      names.add(r.name);
+      last = r.released;
+    }
+  }
+  return names;
 }
 
-const yearTick = (t: number) => String(new Date(t).getUTCFullYear());
+interface LabelProps {
+  x?: number | string;
+  y?: number | string;
+  value?: unknown;
+}
 
 /** ECI against release date, coloured by lab, with the record-setting frontier as a step line. */
 export function Timeline({ rows }: { rows: Row[] }) {
-  const narrow = useMediaQuery("(max-width: 36em)") ?? false;
+  const { ref, width } = useElementSize();
+  const narrow = width > 0 && width < 600;
   const colorOf = useLabColor();
   const dated = rows.filter((r): r is Dated => r.released !== null);
   const records = frontier(dated);
-  const labelled = lasting(records);
-  const years = [...new Set(dated.map((r) => new Date(r.released).getUTCFullYear()))];
-  const ticks = years
-    .map((y) => Date.UTC(y, 0, 1))
-    .filter((t) => t >= Math.min(...dated.map((r) => r.released)));
+  if (dated.length === 0) return <div ref={ref} />;
 
-  const counts = new Map<string, number>();
-  for (const r of dated) counts.set(r.lab, (counts.get(r.lab) ?? 0) + 1);
-  const legend = [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, LEGEND_LABS);
+  const times = dated.map((r) => r.released);
+  const firstYear = new Date(Math.min(...times)).getUTCFullYear();
+  const lastYear = new Date(Math.max(...times)).getUTCFullYear();
+  const start = Date.UTC(firstYear, 0, 1);
+  const end = Math.max(...times) + 20 * DAY_MS;
+  const xTicks = Array.from({ length: lastYear - firstYear + 1 }, (_, i) =>
+    Date.UTC(firstYear + i, 0, 1),
+  );
+  const ecis = dated.map((r) => r.eci);
+  const yTicks = niceTicks(Math.min(...ecis), Math.max(...ecis), 4);
+  const plotWidth = Math.max(width - Y_AXIS_WIDTH - 32, 1);
+  const names = labelled(records, ((end - start) * LABEL_SPACING_PX) / plotWidth);
+
+  const renderLabel = ({ x = 0, y = 0, value }: LabelProps) => {
+    const name = String(value);
+    if (!names.has(name)) return null;
+    const px = Number(x);
+    const anchor = px < Y_AXIS_WIDTH + 70 ? "start" : "end";
+    return (
+      <text
+        x={px + (anchor === "start" ? -2 : 4)}
+        y={Number(y) - 12}
+        textAnchor={anchor}
+        fill="var(--mantine-color-text)"
+        fontSize={11}
+        fontWeight={650}
+        paintOrder="stroke"
+        stroke="var(--mantine-color-body)"
+        strokeWidth={4}
+      >
+        {name}
+      </text>
+    );
+  };
 
   return (
-    <Stack gap="sm">
-      <ResponsiveContainer width="100%" height={narrow ? 360 : 460}>
-        <ScatterChart margin={{ top: 24, right: 24, bottom: 8, left: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--mantine-color-default-border)" />
+    <div ref={ref}>
+      {width > 0 && (
+        <ScatterChart
+          width={width}
+          height={narrow ? 340 : 440}
+          margin={{ top: 28, right: 16, bottom: 4, left: 0 }}
+        >
+          <CartesianGrid stroke="var(--mantine-color-default-border)" />
           <XAxis
             type="number"
             dataKey="released"
-            domain={["dataMin", "dataMax"]}
-            ticks={ticks}
-            tickFormatter={yearTick}
+            domain={[start, end]}
+            ticks={xTicks}
+            tickFormatter={(t: number) => String(new Date(t).getUTCFullYear())}
             tick={{ fill: "var(--mantine-color-dimmed)", fontSize: 12 }}
             tickLine={false}
+            axisLine={false}
+            allowDataOverflow
           />
           <YAxis
             type="number"
             dataKey="eci"
-            domain={["auto", "auto"]}
-            width={44}
+            domain={[yTicks[0] ?? 0, yTicks.at(-1) ?? 200]}
+            ticks={yTicks}
+            width={Y_AXIS_WIDTH}
             tick={{ fill: "var(--mantine-color-dimmed)", fontSize: 12 }}
             tickLine={false}
             axisLine={false}
           />
+          <ZAxis range={narrow ? [22, 22] : [40, 40]} />
           <Tooltip content={<ChartTooltip />} cursor={{ strokeDasharray: "3 3" }} />
           <Scatter data={dated} isAnimationActive={false}>
             {dated.map((r) => (
-              <Cell key={r.name} fill={colorOf(r.lab)} fillOpacity={0.8} />
+              <Cell
+                key={r.name}
+                fill={colorOf(r.lab)}
+                fillOpacity={0.5}
+                stroke={colorOf(r.lab)}
+                strokeOpacity={0.9}
+              />
             ))}
           </Scatter>
           <Scatter
@@ -97,29 +145,10 @@ export function Timeline({ rows }: { rows: Row[] }) {
             fill="var(--mantine-color-text)"
             isAnimationActive={false}
           >
-            {!narrow && (
-              <LabelList
-                dataKey="name"
-                formatter={(name) => (labelled.has(String(name)) ? String(name) : "")}
-                position="top"
-                offset={10}
-                width={200}
-                style={{ fill: "var(--mantine-color-text)", fontSize: 11, fontWeight: 600 }}
-              />
-            )}
+            {!narrow && <LabelList dataKey="name" content={renderLabel} />}
           </Scatter>
         </ScatterChart>
-      </ResponsiveContainer>
-      <Group gap="md" justify="center">
-        {legend.map(([lab]) => (
-          <Group key={lab} gap={6} wrap="nowrap">
-            <LabLogo lab={lab} size={14} />
-            <Text size="xs" c="dimmed">
-              {lab}
-            </Text>
-          </Group>
-        ))}
-      </Group>
-    </Stack>
+      )}
+    </div>
   );
 }

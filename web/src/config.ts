@@ -13,8 +13,18 @@ import alibaba from "@lobehub/icons-static-svg/icons/qwen.svg";
 import xai from "@lobehub/icons-static-svg/icons/xai.svg";
 import zai from "@lobehub/icons-static-svg/icons/zai.svg";
 
+import type { Weights } from "./data";
+
 export const TOP_N = 20;
-export const NEW_WITHIN_DAYS = 45;
+export const TABLE_PAGE_SIZE = 25;
+/** A model is "new" if it was released at most this many days before the snapshot. */
+export const NEW_WITHIN_DAYS = 30;
+
+export const WEIGHTS: Record<Weights, { label: string; hint: string; color: string }> = {
+  open: { label: "Open", hint: "Weights are downloadable", color: "teal" },
+  closed: { label: "Closed", hint: "API, hosted or unreleased", color: "gray" },
+  unknown: { label: "Limited / unknown", hint: "Limited access, or not recorded", color: "yellow" },
+};
 
 export const LINKS = {
   repo: "https://github.com/soffits/eci-live",

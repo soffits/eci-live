@@ -1,5 +1,20 @@
-import { Box, Group, Input, MultiSelect, RangeSlider, SegmentedControl, Text } from "@mantine/core";
-import { type Filters, monthLabel, type WeightsFilter } from "../filters";
+import {
+  Badge,
+  Box,
+  Button,
+  Drawer,
+  Group,
+  Input,
+  MultiSelect,
+  RangeSlider,
+  SegmentedControl,
+  Stack,
+  Text,
+} from "@mantine/core";
+import { useDisclosure, useMediaQuery } from "@mantine/hooks";
+import { WEIGHTS } from "../config";
+import { activeFilterCount, type Filters, monthLabel, type WeightsFilter } from "../filters";
+import classes from "./FilterBar.module.css";
 import { LabLogo } from "./LabLogo";
 
 interface Props {
@@ -11,34 +26,36 @@ interface Props {
   total: number;
 }
 
-/** Filters shared by the leaderboard, timeline and table. */
-export function FilterBar({ value, onChange, labs, bounds, shown, total }: Props) {
+const WEIGHT_OPTIONS = [
+  { value: "all", label: "All" },
+  ...Object.entries(WEIGHTS).map(([value, w]) => ({ value, label: w.label })),
+];
+
+function Controls({ value, onChange, labs, bounds, stacked }: Props & { stacked: boolean }) {
   return (
-    <Group gap="lg" align="flex-end" wrap="wrap">
-      <Box>
-        <Input.Label display="block">Weights</Input.Label>
-        <SegmentedControl<WeightsFilter>
-          value={value.weights}
-          onChange={(weights) => onChange({ ...value, weights })}
-          radius="xl"
-          data={[
-            { value: "all", label: "All" },
-            { value: "open", label: "Open" },
-            { value: "closed", label: "Closed" },
-          ]}
-        />
-      </Box>
+    <>
+      <Input.Wrapper label="Weights">
+        <div>
+          <SegmentedControl<WeightsFilter>
+            value={value.weights}
+            onChange={(weights) => onChange({ ...value, weights })}
+            data={WEIGHT_OPTIONS as { value: WeightsFilter; label: string }[]}
+            fullWidth={stacked}
+            orientation={stacked ? "vertical" : "horizontal"}
+            className={classes.control}
+          />
+        </div>
+      </Input.Wrapper>
       <MultiSelect
         label="Labs"
-        placeholder={value.labs.length ? undefined : "All labs"}
+        placeholder={value.labs.length ? undefined : "Every lab"}
         data={labs}
         value={value.labs}
         onChange={(selected) => onChange({ ...value, labs: selected })}
         searchable
         clearable
-        radius="xl"
-        miw={220}
-        style={{ flex: "1 1 220px" }}
+        classNames={{ input: classes.labs }}
+        className={classes.grow}
         renderOption={({ option }) => (
           <Group gap={8} wrap="nowrap">
             <LabLogo lab={option.value} size={16} />
@@ -46,23 +63,79 @@ export function FilterBar({ value, onChange, labs, bounds, shown, total }: Props
           </Group>
         )}
       />
-      <Box style={{ flex: "2 1 260px" }} pb={6}>
-        <Input.Label display="block" mb={8}>
-          Released {monthLabel(value.months[0])} – {monthLabel(value.months[1])}
-        </Input.Label>
-        <RangeSlider
-          min={bounds[0]}
-          max={bounds[1]}
-          minRange={0}
-          value={value.months}
-          onChange={(months) => onChange({ ...value, months })}
-          label={monthLabel}
-          aria-label="Release date range"
-        />
-      </Box>
-      <Text size="sm" c="dimmed" pb={8}>
-        {shown} of {total} models
-      </Text>
-    </Group>
+      <Input.Wrapper
+        label={`Released ${monthLabel(value.months[0])} – ${monthLabel(value.months[1])}`}
+        className={classes.grow}
+      >
+        <Box className={classes.sliderBox}>
+          <RangeSlider
+            min={bounds[0]}
+            max={bounds[1]}
+            minRange={0}
+            value={value.months}
+            onChange={(months) => onChange({ ...value, months })}
+            label={monthLabel}
+            aria-label="Release date range"
+          />
+        </Box>
+      </Input.Wrapper>
+    </>
+  );
+}
+
+/** Filters shared by the leaderboard, timeline and table: inline on wide screens, a sheet on phones. */
+export function FilterBar(props: Props) {
+  const narrow = useMediaQuery("(max-width: 48em)") ?? false;
+  const [opened, { open, close }] = useDisclosure(false);
+  const active = activeFilterCount(props.value, props.bounds);
+  const count = (
+    <Text size="sm" c="dimmed" className="num" style={{ whiteSpace: "nowrap" }}>
+      {props.shown} of {props.total} models
+    </Text>
+  );
+
+  if (!narrow) {
+    return (
+      <Group gap="lg" align="flex-end" wrap="nowrap" className={classes.bar}>
+        <Controls {...props} stacked={false} />
+        <Box className={classes.countBox}>{count}</Box>
+      </Group>
+    );
+  }
+  return (
+    <>
+      <Group justify="space-between" wrap="nowrap">
+        <Button
+          variant="default"
+          radius="xl"
+          onClick={open}
+          rightSection={
+            active > 0 && (
+              <Badge size="sm" circle>
+                {active}
+              </Badge>
+            )
+          }
+        >
+          Filters
+        </Button>
+        {count}
+      </Group>
+      <Drawer
+        opened={opened}
+        onClose={close}
+        position="bottom"
+        styles={{ content: { height: "auto", width: "100%", flex: "0 0 auto" } }}
+        title="Filter models"
+        radius="lg"
+      >
+        <Stack gap="lg" pb="md">
+          <Controls {...props} stacked />
+          <Button onClick={close} radius="xl">
+            Show {props.shown} models
+          </Button>
+        </Stack>
+      </Drawer>
+    </>
   );
 }

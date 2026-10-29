@@ -1,0 +1,29 @@
+.group {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.new,
+.preview {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 9px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.new {
+  color: var(--mantine-color-dimmed);
+  border: 1px solid var(--mantine-color-default-border);
+}
+
+.preview {
+  color: light-dark(var(--mantine-color-violet-8), var(--mantine-color-violet-2));
+  background: light-dark(var(--mantine-color-violet-0), rgb(132 94 247 / 22%));
+  border: 1px dashed light-dark(var(--mantine-color-violet-5), var(--mantine-color-violet-4));
+}

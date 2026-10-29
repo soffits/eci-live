@@ -14,3 +14,11 @@ export function formatCi(row: Row): string {
   if (row.ci_low === null || row.ci_high === null) return "scale anchor (fixed)";
   return `90% CI ${row.ci_low.toFixed(1)}–${row.ci_high.toFixed(1)}`;
 }
+
+export function formatRange(low: number, high: number): string {
+  return low === high ? String(low) : `${low}–${high}`;
+}
+
+export function formatPercent(share: number): string {
+  return share > 0 && share < 0.01 ? "<1%" : `${Math.round(share * 100)}%`;
+}
