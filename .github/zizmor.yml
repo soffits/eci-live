@@ -1,0 +1,8 @@
+rules:
+  unpinned-uses:
+    config:
+      policies:
+        # Major-version tags for GitHub's own actions and astral-sh; anything else must be hash-pinned.
+        actions/*: ref-pin
+        astral-sh/*: ref-pin
+        "*": hash-pin
