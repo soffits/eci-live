@@ -28,19 +28,10 @@
   text-align: right;
 }
 
+/* The tie band already groups tied rows; the rank only changes colour, so every rank shares
+   one right edge. */
 .rank[data-tied] {
   color: var(--eci-tie-text);
-  background: var(--eci-tie-chip);
-}
-
-/* A short dotted rule above a rank that skips hidden models. */
-.rank[data-gap]::before {
-  content: "";
-  position: absolute;
-  top: -7px;
-  right: 6px;
-  width: 1.2em;
-  border-top: 2px dotted var(--mantine-color-dimmed);
 }
 
 .tick > .name {
@@ -119,9 +110,10 @@
 }
 
 .keyTie {
-  padding: 0 6px;
+  padding: 0 8px 0 10px;
   border-radius: 4px;
+  border-left: 3px solid var(--eci-tie-accent);
   font-weight: 700;
   color: var(--eci-tie-text);
-  background: var(--eci-tie-chip);
+  background: var(--eci-tie-band);
 }

@@ -12,7 +12,7 @@ import {
   Switch,
   Text,
   Title,
-  useComputedColorScheme,
+  Tooltip,
   useMantineColorScheme,
 } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
@@ -99,18 +99,29 @@ function SectionTitle({
   );
 }
 
+const SCHEMES = ["auto", "light", "dark"] as const;
+const SCHEME_LABEL = {
+  auto: "Theme: follows your device",
+  light: "Theme: light",
+  dark: "Theme: dark",
+};
+const SCHEME_ICON = { auto: "◐", light: "☀", dark: "☾" };
+
+/** Cycles device (auto), light and dark; auto is the default and follows the system setting. */
 function ThemeToggle() {
-  const { setColorScheme } = useMantineColorScheme();
-  const dark = useComputedColorScheme("light") === "dark";
+  const { colorScheme, setColorScheme } = useMantineColorScheme();
+  const next = SCHEMES[(SCHEMES.indexOf(colorScheme) + 1) % SCHEMES.length] ?? "auto";
   return (
-    <ActionIcon
-      variant="default"
-      size="lg"
-      onClick={() => setColorScheme(dark ? "light" : "dark")}
-      aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
-    >
-      <span aria-hidden>{dark ? "☀" : "☾"}</span>
-    </ActionIcon>
+    <Tooltip label={SCHEME_LABEL[colorScheme]} withArrow>
+      <ActionIcon
+        variant="default"
+        size="lg"
+        onClick={() => setColorScheme(next)}
+        aria-label={`${SCHEME_LABEL[colorScheme]}. Switch to ${next}.`}
+      >
+        <span aria-hidden>{SCHEME_ICON[colorScheme]}</span>
+      </ActionIcon>
+    </Tooltip>
   );
 }
 
@@ -307,7 +318,7 @@ export function App({
                   </Group>
                   <Text size="sm" c="dimmed" mb="sm" className={classes.caption}>
                     {topView === "current"
-                      ? `The newest version of each lab's ${LINES_PER_LAB} most recent model lines. ${hidden} older models are hidden, so ranks skip numbers: they count every model.`
+                      ? `The newest version of each lab's ${LINES_PER_LAB} most recent model lines (${hidden} older models hidden). Hover a number for its rank among every model.`
                       : "Every model, including ones their lab has since matched or beaten."}
                     {preset.epochs &&
                       " These are Epoch AI's published Cyber ECI scores, not this refit's."}

@@ -90,7 +90,6 @@ export const cssVariablesResolver: CSSVariablesResolver = () => ({
     "--eci-tie-band": "#f1effa",
     "--eci-tie-accent": "var(--mantine-color-violet-6)",
     "--eci-tie-text": "var(--mantine-color-violet-8)",
-    "--eci-tie-chip": "#e4defa",
     "--eci-glow": "rgb(139 92 246 / 22%)",
   },
   dark: {
@@ -108,7 +107,6 @@ export const cssVariablesResolver: CSSVariablesResolver = () => ({
     "--eci-tie-band": "#1d1b2b",
     "--eci-tie-accent": "var(--mantine-color-violet-4)",
     "--eci-tie-text": "var(--mantine-color-violet-2)",
-    "--eci-tie-chip": "#352c5c",
     "--eci-glow": "rgb(139 92 246 / 30%)",
   },
 });
