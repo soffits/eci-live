@@ -37,7 +37,31 @@ export function isSuperseded(row: Row, rows: Row[]): boolean {
   );
 }
 
-/** Each lab's current generation: the rows no newer model of the same line matches. */
-export function currentGeneration(rows: Row[]): Row[] {
-  return rows.filter((r) => !isSuperseded(r, rows));
+/** How many of each lab's most recently updated lines count as its current line-up. */
+export const LINES_PER_LAB = 4;
+
+/**
+ * Each lab's current generation: rows no newer model of the same line matches, from the
+ * lab's LINES_PER_LAB most recently released lines, so retired lines (an old Codex or Pro)
+ * drop out once the lab has moved on. Undated rows and unknown labs are always kept.
+ */
+export function currentGeneration(rows: Row[], linesPerLab = LINES_PER_LAB): Row[] {
+  const kept = rows.filter((r) => !isSuperseded(r, rows));
+  const lastRelease = new Map<string, Map<string, number>>();
+  for (const r of kept) {
+    if (r.released === null || r.lab === NO_LAB) continue;
+    const lines = lastRelease.get(r.lab) ?? new Map<string, number>();
+    const line = lineOf(r.name);
+    lines.set(line, Math.max(lines.get(line) ?? r.released, r.released));
+    lastRelease.set(r.lab, lines);
+  }
+  const recent = new Map<string, Set<string>>();
+  for (const [lab, lines] of lastRelease) {
+    const newest = [...lines.entries()].sort((a, b) => b[1] - a[1]).slice(0, linesPerLab);
+    recent.set(lab, new Set(newest.map(([line]) => line)));
+  }
+  return kept.filter(
+    (r) =>
+      r.released === null || r.lab === NO_LAB || (recent.get(r.lab)?.has(lineOf(r.name)) ?? true),
+  );
 }

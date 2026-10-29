@@ -31,7 +31,7 @@ import { LINKS, NEW_WITHIN_DAYS, TOP_N } from "./config";
 import { type SiteData, toRows } from "./data";
 import { applyFilters, type Filters, monthBounds } from "./filters";
 import { formatDate } from "./format";
-import { currentGeneration } from "./generations";
+import { currentGeneration, LINES_PER_LAB } from "./generations";
 import { withPicked } from "./pick";
 
 type TopView = "current" | "all";
@@ -206,7 +206,7 @@ export function App({ data }: { data: Promise<SiteData> }) {
                 <Grid.Col span={{ base: 12, lg: 8 }} className={classes.chartCol}>
                   <Group justify="space-between" align="center" mb={6} gap="xs">
                     <Title order={2} className={classes.sectionTitle}>
-                      Top {top.length} by ECI
+                      Leaderboard
                       {chart.added.size > 0 && ` + ${chart.added.size} added`}
                     </Title>
                     <SegmentedControl<TopView>
@@ -219,7 +219,7 @@ export function App({ data }: { data: Promise<SiteData> }) {
                   </Group>
                   <Text size="xs" c="dimmed" mb="sm" className={classes.balance}>
                     {topView === "current"
-                      ? `A model is hidden once its lab releases a newer one in the same line (same name without the version) with an ECI at least as high (${hidden} hidden; ranks count every model).`
+                      ? `Each lab's ${LINES_PER_LAB} most recently released lines (a line is the name without its version), newest version of each (${hidden} hidden; ranks count every model).`
                       : "Every model, including ones their lab has since matched or beaten."}
                   </Text>
                   <Box mb="sm">

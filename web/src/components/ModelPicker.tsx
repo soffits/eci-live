@@ -8,7 +8,7 @@ interface Props {
   onChange: (names: string[]) => void;
 }
 
-/** Search every scored model and add it to the Top 20 chart. */
+/** Search every scored model and add it to the leaderboard chart. */
 export function ModelPicker({ models, value, onChange }: Props) {
   const byName = new Map(models.map((r) => [r.name, r]));
   return (
