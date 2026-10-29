@@ -23,19 +23,22 @@ export interface Defaults {
 }
 
 /**
- * Each model's default variant among the ranked rows (those with enough benchmarks): its
- * highest-effort variant, or the next one down when that has too few benchmarks. Groups
- * with no ranked variant are left out.
+ * Each model's default variant: its highest-effort variant that is ranked on the board, or the
+ * next one down when that misses the board's requirement. With `orProvisional`, a model with
+ * no ranked variant still gets its highest-effort one (drawn as provisional), so the newest
+ * models show up even before they have enough evidence; otherwise such models are left out.
  */
-export function defaultVariants(rows: Row[]): Defaults {
+export function defaultVariants(rows: Row[], orProvisional = false): Defaults {
   const groups = new Map<string, Row[]>();
   for (const r of rows) groups.set(r.group, [...(groups.get(r.group) ?? []), r]);
   const chosen = new Set<Row>();
   const skipped = new Map<string, Row[]>();
   for (const members of groups.values()) {
-    const pick = members.filter((r) => r.rank !== null).sort(preferred)[0];
+    const ranked = members.filter((r) => r.rank !== null).sort(preferred)[0];
+    const pick = ranked ?? (orProvisional ? [...members].sort(preferred)[0] : undefined);
     if (!pick) continue;
     chosen.add(pick);
+    if (!ranked) continue;
     const passed = members
       .filter((r) => r.rank === null && r.pro === pick.pro && r.effort_rank > pick.effort_rank)
       .sort(preferred);
