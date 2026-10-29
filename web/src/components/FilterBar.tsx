@@ -89,7 +89,7 @@ export function FilterBar(props: Props) {
   const [opened, { open, close }] = useDisclosure(false);
   const active = activeFilterCount(props.value, props.bounds);
   const count = (
-    <Text size="sm" c="dimmed" className="num" style={{ whiteSpace: "nowrap" }}>
+    <Text size="sm" c="dimmed" className="num chrome" style={{ whiteSpace: "nowrap" }}>
       {props.shown} of {props.total} models
     </Text>
   );

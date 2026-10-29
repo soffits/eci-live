@@ -140,7 +140,11 @@ export function Timeline({ rows }: { rows: Row[] }) {
             axisLine={false}
           />
           <ZAxis range={narrow ? [22, 22] : [40, 40]} />
-          <Tooltip content={<ChartTooltip />} cursor={{ strokeDasharray: "3 3" }} />
+          <Tooltip
+            content={<ChartTooltip />}
+            cursor={{ strokeDasharray: "3 3" }}
+            wrapperStyle={{ userSelect: "none" }}
+          />
           <Scatter data={shown} isAnimationActive={false}>
             {shown.map((r) => (
               <Cell

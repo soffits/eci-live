@@ -104,6 +104,7 @@ export function ModelTable({ rows, hasPrevious }: { rows: Row[]; hasPrevious: bo
         records={records}
         idAccessor="name"
         highlightOnHover
+        classNames={{ pagination: "chrome" }}
         verticalSpacing={8}
         verticalAlign="center"
         sortStatus={sort}

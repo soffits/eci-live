@@ -198,6 +198,7 @@ export function Leaderboard({
           <Tooltip
             content={<ChartTooltip />}
             cursor={{ fill: "var(--mantine-color-default-hover)" }}
+            wrapperStyle={{ userSelect: "none" }}
           />
           <Bar
             dataKey={(r: Row) => [r.ci_low ?? r.eci, r.ci_high ?? r.eci]}
@@ -213,7 +214,7 @@ export function Leaderboard({
 /** How to read the leaderboard. */
 export function LeaderboardKey() {
   return (
-    <div className={classes.key}>
+    <div className={`${classes.key} chrome`}>
       <span>
         <svg width="34" height="14" aria-hidden>
           <rect x="1" y="3" width="32" height="8" rx="4" className={classes.keyCapsule} />

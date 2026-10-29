@@ -127,7 +127,7 @@ export function App({ data }: { data: Promise<SiteData> }) {
     <>
       <Spectrum labs={labCounts.filter(([lab]) => lab !== "Unknown")} />
       <Container size="xl" className={classes.page}>
-        <Group justify="space-between" py="md" wrap="nowrap">
+        <Group component="header" justify="space-between" py="md" wrap="nowrap">
           <Group gap={10} wrap="nowrap">
             <span className={classes.pulse} aria-hidden />
             <Text fw={800} size="lg" lts={-0.3}>
