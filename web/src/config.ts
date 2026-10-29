@@ -71,6 +71,11 @@ const LABS: Record<string, Lab> = {
 
 const OTHER: Lab = { color: "#94A3B8", dark: "#B4BFCE" };
 
+/** Whether the lab has its own colour rather than the shared grey fallback. */
+export function hasLabColor(lab: string): boolean {
+  return lab in LABS;
+}
+
 export function labStyle(lab: string, dark: boolean): { color: string; logo?: string } {
   const entry = LABS[lab] ?? OTHER;
   return { color: (dark && entry.dark) || entry.color, logo: entry.logo };

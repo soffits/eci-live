@@ -33,8 +33,6 @@ import { formatDate } from "./format";
 import { currentGeneration } from "./generations";
 import { withPicked } from "./pick";
 
-const LEGEND_LABS = 12;
-
 type TopView = "current" | "all";
 const TOP_VIEWS: { value: TopView; label: string }[] = [
   { value: "current", label: "Current generation" },
@@ -108,11 +106,15 @@ export function App({ data }: { data: Promise<SiteData> }) {
   const [picked, setPicked] = useQueryState("model", parseAsNativeArrayOf(parseAsString));
   const known = new Set(all.map((r) => r.name));
   const pickedKnown = picked.filter((name) => known.has(name));
-  const toggleLab = (lab: string) =>
-    setFilters((f) => ({
-      ...f,
-      labs: f.labs.includes(lab) ? f.labs.filter((l) => l !== lab) : [...f.labs, lab],
-    }));
+  // Labs with at least one dot on the timeline, most models first.
+  const datedLabs = labs.filter((lab) => all.some((r) => r.lab === lab && r.released !== null));
+  // A legend chip may stand for several labs: all on, or all off when they already are.
+  const toggleLabs = (group: string[]) =>
+    setFilters((f) => {
+      const on = group.every((lab) => f.labs.includes(lab));
+      const rest = f.labs.filter((lab) => !group.includes(lab));
+      return { ...f, labs: on ? rest : [...rest, ...group] };
+    });
 
   const { latest } = site;
   const hasPrevious = Object.keys(site.previous_eci).length > 0;
@@ -216,11 +218,7 @@ export function App({ data }: { data: Promise<SiteData> }) {
           />
           <Timeline rows={rows} />
           <Group justify="space-between" mt="md" gap="sm">
-            <LabLegend
-              labs={labs.slice(0, LEGEND_LABS)}
-              selected={filters.labs}
-              onToggle={toggleLab}
-            />
+            <LabLegend labs={datedLabs} selected={filters.labs} onToggle={toggleLabs} />
           </Group>
         </section>
 

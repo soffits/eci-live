@@ -146,7 +146,7 @@ export function Timeline({ rows }: { rows: Row[] }) {
               <Cell
                 key={r.name}
                 fill={colorOf(r.lab)}
-                fillOpacity={0.5}
+                fillOpacity={0.75}
                 stroke={colorOf(r.lab)}
                 strokeOpacity={0.9}
               />
