@@ -10,7 +10,7 @@ import { NewMark, PreviewMark } from "./ModelBadges";
 import { ModelLink } from "./ModelLink";
 import classes from "./ModelTable.module.css";
 
-type SortKey = "rank" | "name" | "lab" | "released" | "eci" | "benchmarks" | "delta";
+type SortKey = "rank" | "name" | "lab" | "released" | "eci" | "benchmarks" | "delta" | "weights";
 
 function compare(a: Row, b: Row, key: SortKey): number {
   const x = a[key];
@@ -52,6 +52,22 @@ function CiCapsule({ row, scale }: { row: Row; scale: (v: number) => number }) {
       <Progress.Section value={tick} color="var(--mantine-color-text)" />
       <Progress.Section value={Math.max(high - mid - tick / 2, 0)} color={color} opacity={0.55} />
     </Progress.Root>
+  );
+}
+
+function SortIcon({ path }: { path: string }) {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="var(--mantine-color-dimmed)"
+      strokeWidth="2.2"
+      aria-hidden
+    >
+      <path d={path} />
+    </svg>
   );
 }
 
@@ -108,8 +124,6 @@ export function ModelTable({
   const min = Math.min(...lows) - pad;
   const max = Math.max(...highs) + pad;
   const scale = (v: number) => ((v - min) / (max - min)) * 100;
-  // Δ only earns its column when some score actually moved.
-  const showDelta = hasPrevious && rows.some((r) => r.delta !== null && Math.abs(r.delta) >= 0.05);
 
   return (
     <Stack gap="sm">
@@ -150,6 +164,10 @@ export function ModelTable({
         horizontalSpacing={narrow ? 8 : "sm"}
         verticalAlign="center"
         sortStatus={sort}
+        sortIcons={{
+          sorted: <SortIcon path="M7 14l5-5 5 5" />,
+          unsorted: <SortIcon path="M8 9l4-4 4 4M8 15l4 4 4-4" />,
+        }}
         onSortStatusChange={(s) => {
           setSort(s);
           setPage(1);
@@ -253,7 +271,7 @@ export function ModelTable({
             title: "Δ",
             sortable: true,
             textAlign: "right",
-            hidden: !showDelta,
+            hidden: !hasPrevious,
             noWrap: true,
             render: (r) => <Delta value={r.delta} />,
           },
@@ -269,6 +287,7 @@ export function ModelTable({
           {
             accessor: "weights",
             title: "Weights",
+            sortable: true,
             // The last column takes the spare width, so the others hug their content.
             width: "100%",
             noWrap: true,

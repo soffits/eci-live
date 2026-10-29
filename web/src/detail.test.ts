@@ -1,7 +1,18 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { BenchmarkResult } from "./data.ts";
-import { curve, fitPoints, formatFlop, isThin, predictedScore, splitResults } from "./detail.ts";
+import {
+  curve,
+  fitPoints,
+  formatFlop,
+  formatScore,
+  groupTitle,
+  isThin,
+  predictedScore,
+  pullPoints,
+  splitResults,
+  versionLabel,
+} from "./detail.ts";
 
 // Rows exported by the pipeline (models/gpt-6-astra.json, models/beam-1-0.json) for the
 // snapshot of 2026-10-29, with the published ECIs 168.89 and 150.17.
@@ -86,4 +97,32 @@ test("results split into used and unused, grouped by reason", () => {
 test("training compute reads as a power of ten", () => {
   assert.equal(formatFlop(9.4e26), "9.4 × 10²⁶ FLOP");
   assert.equal(formatFlop(1e25), "1.0 × 10²⁵ FLOP");
+});
+
+test("pull is the difference of the rounded percentages", () => {
+  // EBR-bench: 76% actual, 71% predicted (0.7619 - 0.7064 would round to 6).
+  assert.equal(pullPoints(0.7619, 0.7064), 5);
+  assert.equal(pullPoints(0.5, 0.5), 0);
+});
+
+test("group titles read as plurals, version labels drop the model name", () => {
+  assert.equal(
+    groupTitle("This benchmark isn't part of the index."),
+    "Benchmarks outside the index",
+  );
+  assert.equal(
+    groupTitle("Replaced in the fit by X, a newer version."),
+    "Replaced in the fit by X, a newer version",
+  );
+  const versions = [
+    { version: "gpt-6-astra_unknown", display_name: "GPT-6 Astra (unknown thinking)" },
+  ];
+  assert.equal(versionLabel("gpt-6-astra_unknown", versions, "GPT-6 Astra"), "unknown thinking");
+  assert.equal(versionLabel("other", versions, "GPT-6 Astra"), "other");
+});
+
+test("scores get decimals that fit their scale", () => {
+  assert.equal(formatScore(0.6471, 1), "0.647");
+  assert.equal(formatScore(64.42, 80), "64.4");
+  assert.equal(formatScore(15514.7, 20000), "15,515");
 });

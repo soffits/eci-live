@@ -211,7 +211,9 @@ export function App({
 
   const { latest } = site;
   const isGeneral = params.preset === "general";
-  const hasPrevious = isGeneral && Object.keys(site.previous_eci).length > 0;
+  // Δ only earns its column when some score moved since the previous snapshot.
+  const hasPrevious =
+    isGeneral && general.some((r) => r.delta !== null && Math.abs(r.delta) >= 0.05);
   const top = (topView === "current" ? current : rows).slice(0, TOP_N);
   const hidden = rows.length - current.length;
   const chart = withPicked(top, all, pickedKnown);
@@ -429,11 +431,18 @@ export function App({
           </>
         )}
 
-        <Group justify="space-between" py={40} gap="xs">
-          <Text size="sm" c="dimmed">
-            ECI Live by Sakina · code AGPL-3.0
+        <Group
+          component="footer"
+          justify="space-between"
+          py={32}
+          mt={48}
+          gap="xs"
+          className={classes.footer}
+        >
+          <Text size="md" c="dimmed">
+            ECI Live by Sakina · code AGPL-3.0 · data Epoch AI, CC BY 4.0
           </Text>
-          <Text size="sm" c="dimmed">
+          <Text size="md">
             <Anchor href={LINKS.repo}>Source and snapshot history</Anchor>
           </Text>
         </Group>

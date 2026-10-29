@@ -76,3 +76,45 @@ export function formatFlop(flop: number): string {
   const superscript = String(exponent).replace(/\d/g, (d) => "⁰¹²³⁴⁵⁶⁷⁸⁹"[Number(d)] ?? d);
   return `${mantissa.toFixed(1)} × 10${superscript} FLOP`;
 }
+
+/** Actual minus predicted in whole percentage points, from the rounded percentages the
+ * table shows, so the three columns always agree. */
+export function pullPoints(actual: number, predicted: number): number {
+  return Math.round(actual * 100) - Math.round(predicted * 100);
+}
+
+// The pipeline's fixed reasons (src/eci_live/detail.py), as titles for a group of results.
+const GROUP_TITLES: Record<string, string> = {
+  "This benchmark isn't part of the index.": "Benchmarks outside the index",
+  "Another version of this model scored higher here; the fit keeps the best score.":
+    "Lower scores of another version (the fit keeps each benchmark's best)",
+  "Another version of this model has the same score; it is counted once.":
+    "Same score as another version (counted once)",
+  "Not in the fit's input.": "Not in the fit's input",
+};
+
+/** A title for a group of unused results; "Replaced in the fit by …" stays as written. */
+export function groupTitle(reason: string): string {
+  return GROUP_TITLES[reason] ?? reason.replace(/\.$/, "");
+}
+
+/** A version's readable setting, e.g. "unknown thinking" for "GPT-6 Astra (unknown thinking)". */
+export function versionLabel(
+  version: string,
+  versions: { version: string; display_name: string | null }[],
+  model: string,
+): string {
+  const display = versions.find((v) => v.version === version)?.display_name;
+  if (!display) return version;
+  const setting = display.startsWith(model) ? display.slice(model.length).trim() : display;
+  return setting.replace(/^\((.*)\)$/, "$1") || display;
+}
+
+/** A raw score with precision fitted to its scale, so a column's decimals line up. */
+export function formatScore(value: number, scale: number): string {
+  const digits = scale <= 1 ? 3 : scale < 100 ? 1 : 0;
+  return value.toLocaleString("en", {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  });
+}

@@ -164,3 +164,7 @@
     border-radius: 18px;
   }
 }
+
+.footer {
+  border-top: 1px solid var(--eci-card-border);
+}

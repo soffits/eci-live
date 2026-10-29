@@ -21,7 +21,7 @@ function Fact({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className={classes.fact}>
       <Text className={classes.label}>{label}</Text>
-      <Text size="sm" component="div">
+      <Text size="md" component="div">
         {children}
       </Text>
     </div>
@@ -29,10 +29,12 @@ function Fact({ label, children }: { label: string; children: ReactNode }) {
 }
 
 function Hash({ value, href }: { value: string; href?: string }) {
-  const short = `${value.slice(0, 10)}…${value.slice(-6)}`;
+  const short = value.length > 26 ? `${value.slice(0, 10)}…${value.slice(-6)}` : value;
   return (
     <Group gap={4} wrap="nowrap">
-      <Code title={value}>{href ? <Anchor href={href}>{short}</Anchor> : short}</Code>
+      <Code title={value} className={classes.code}>
+        {href ? <Anchor href={href}>{short}</Anchor> : short}
+      </Code>
       <CopyButton value={value}>
         {({ copied, copy }) => (
           <Tooltip label={copied ? "Copied" : "Copy full value"}>
@@ -80,7 +82,7 @@ export function About({ snapshot }: { snapshot: Snapshot }) {
         </Stack>
         <Stack gap="xs">
           <Title order={3}>How this page is made</Title>
-          <List spacing={6} size="sm" c="dimmed" className={classes.prose}>
+          <List spacing={8} size="md" c="dimmed" className={classes.prose}>
             <List.Item>
               A public GitHub Actions run downloads Epoch AI's daily <Code>benchmark_data.zip</Code>{" "}
               and hashes it.
@@ -105,8 +107,10 @@ export function About({ snapshot }: { snapshot: Snapshot }) {
           <Text c="dimmed" className={classes.prose}>
             Data by <Anchor href={LINKS.epochData}>Epoch AI</Anchor>, licensed{" "}
             <Anchor href={LINKS.ccBy}>CC BY 4.0</Anchor>. Method from{" "}
-            <Anchor href={LINKS.paper}>A Rosetta Stone for AI Benchmarks</Anchor> (Ho et al.). Logos
-            from Lobe Icons. Built by Sakina.
+            <Anchor href={LINKS.paper} className={classes.keep}>
+              A Rosetta Stone for AI Benchmarks
+            </Anchor>{" "}
+            (Ho et al.). Logos from Lobe Icons. Built by Sakina.
           </Text>
           <Text c="dimmed" className={classes.prose}>
             ECI Live is an independent refit of Epoch AI's index and is not affiliated with Epoch
@@ -121,7 +125,10 @@ export function About({ snapshot }: { snapshot: Snapshot }) {
         </Title>
         <SimpleGrid cols={{ base: 1, xs: 2, md: 4 }} spacing="lg" verticalSpacing="md">
           <Fact label="Snapshot">
-            <Code>{snapshot.id}</Code>
+            <Hash
+              value={snapshot.id}
+              href={`${LINKS.repo}/blob/data/snapshots/${snapshot.id}.json`}
+            />
           </Fact>
           <Fact label="Data downloaded">
             {formatDate(input.fetched_at)}, {input.fetched_at.slice(11, 16)} UTC

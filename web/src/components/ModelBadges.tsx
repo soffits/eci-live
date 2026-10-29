@@ -5,7 +5,7 @@ import type { Row } from "../data";
 export function NewMark() {
   return (
     <Tooltip label={`Released in the ${NEW_WITHIN_DAYS} days before this snapshot`}>
-      <Badge size="sm" color="teal">
+      <Badge size="sm" color="teal" flex="none">
         new
       </Badge>
     </Tooltip>
@@ -18,6 +18,7 @@ export function AddedMark({ name, onRemove }: { name: string; onRemove: () => vo
     <Badge
       size="sm"
       color="blue"
+      flex="none"
       pr={2}
       rightSection={
         <CloseButton size="xs" onClick={onRemove} aria-label={`Remove ${name} from the chart`} />
@@ -36,7 +37,7 @@ export function PreviewMark({ row, compact = false }: { row: Row; compact?: bool
       multiline
       w={260}
     >
-      <Badge size="sm" color="violet" variant="outline" bd="1px dashed">
+      <Badge size="sm" color="violet" variant="outline" bd="1px dashed" flex="none">
         {compact ? "Not on Epoch" : `Not on Epoch yet · ${row.benchmarks} benchmarks`}
       </Badge>
     </Tooltip>
