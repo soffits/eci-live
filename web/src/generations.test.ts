@@ -2,30 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { Row } from "./data.ts";
 import { currentGeneration } from "./generations.ts";
-
-function row(name: string, lab: string, released: string | null, eci: number): Row {
-  return {
-    name,
-    lab,
-    release_date: released,
-    eci,
-    ci_low: eci - 2,
-    ci_high: eci + 2,
-    benchmarks: 10,
-    rank_low: null,
-    rank_high: null,
-    p_first: null,
-    weights: "closed",
-    accessibility: null,
-    official_eci: eci,
-    rank: 0,
-    released: released === null ? null : Date.parse(released),
-    isNew: false,
-    onEpoch: true,
-    tiedFirst: false,
-    delta: null,
-  };
-}
+import { row } from "./testRows.ts";
 
 const names = (rows: Row[]) => currentGeneration(rows).map((r) => r.name);
 

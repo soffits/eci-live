@@ -5,7 +5,7 @@ import { niceTicks } from "../scale";
 import { ChartTooltip } from "./ChartTooltip";
 import { LabLogo, useLabColor } from "./LabLogo";
 import classes from "./Leaderboard.module.css";
-import { NewMark, PreviewMark } from "./ModelBadges";
+import { AddedMark, NewMark, PreviewMark } from "./ModelBadges";
 
 const ROW_HEIGHT = 32;
 /** On phones each row is two lines: name and value above, capsule below at full width. */
@@ -42,7 +42,16 @@ interface AreaProps {
  * Capsules don't imply a zero, so the truncated axis is honest. Models Epoch hasn't
  * published are drawn hollow and dashed.
  */
-export function Leaderboard({ rows }: { rows: Row[] }) {
+export function Leaderboard({
+  rows,
+  added = new Set(),
+  onRemove,
+}: {
+  rows: Row[];
+  /** Models the user added; they get a removable "added" mark. */
+  added?: Set<string>;
+  onRemove?: (name: string) => void;
+}) {
   const { ref, width } = useElementSize();
   const stacked = width > 0 && width < STACKED_BELOW_PX;
   const rowHeight = stacked ? STACKED_ROW_HEIGHT : ROW_HEIGHT;
@@ -76,6 +85,9 @@ export function Leaderboard({ rows }: { rows: Row[] }) {
           <span className={classes.name} title={row.name}>
             {row.name}
           </span>
+          {added.has(row.name) && onRemove && (
+            <AddedMark name={row.name} onRemove={() => onRemove(row.name)} />
+          )}
           {row.isNew && row.onEpoch && <NewMark />}
           {!row.onEpoch && <PreviewMark row={row} compact />}
           {stacked && <span className={classes.stackedValue}>{row.eci.toFixed(1)}</span>}

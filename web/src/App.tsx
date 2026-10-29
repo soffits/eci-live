@@ -14,6 +14,7 @@ import {
   useComputedColorScheme,
   useMantineColorScheme,
 } from "@mantine/core";
+import { parseAsNativeArrayOf, parseAsString, useQueryState } from "nuqs";
 import { type ReactNode, use, useMemo, useState } from "react";
 import classes from "./App.module.css";
 import { About } from "./components/About";
@@ -22,6 +23,7 @@ import { Insights } from "./components/Insights";
 import { LabLegend } from "./components/LabLegend";
 import { useLabColor } from "./components/LabLogo";
 import { Leaderboard, LeaderboardKey } from "./components/Leaderboard";
+import { ModelPicker } from "./components/ModelPicker";
 import { ModelTable } from "./components/ModelTable";
 import { Timeline } from "./components/Timeline";
 import { LINKS, NEW_WITHIN_DAYS, TOP_N } from "./config";
@@ -29,6 +31,7 @@ import { type SiteData, toRows } from "./data";
 import { applyFilters, type Filters, monthBounds } from "./filters";
 import { formatDate } from "./format";
 import { currentGeneration } from "./generations";
+import { withPicked } from "./pick";
 
 const LEGEND_LABS = 12;
 
@@ -101,6 +104,10 @@ export function App({ data }: { data: Promise<SiteData> }) {
   const rows = useMemo(() => applyFilters(all, filters, bounds), [all, filters, bounds]);
   const [topView, setTopView] = useState<TopView>("current");
   const current = useMemo(() => currentGeneration(rows), [rows]);
+  // Models the user added to the chart, kept in the URL (?model=A&model=B) for sharing.
+  const [picked, setPicked] = useQueryState("model", parseAsNativeArrayOf(parseAsString));
+  const known = new Set(all.map((r) => r.name));
+  const pickedKnown = picked.filter((name) => known.has(name));
   const toggleLab = (lab: string) =>
     setFilters((f) => ({
       ...f,
@@ -111,6 +118,8 @@ export function App({ data }: { data: Promise<SiteData> }) {
   const hasPrevious = Object.keys(site.previous_eci).length > 0;
   const top = (topView === "current" ? current : rows).slice(0, TOP_N);
   const hidden = rows.length - current.length;
+  const chart = withPicked(top, all, pickedKnown);
+  const unpick = (name: string) => setPicked(pickedKnown.filter((n) => n !== name));
 
   return (
     <>
@@ -164,7 +173,7 @@ export function App({ data }: { data: Promise<SiteData> }) {
             <Grid.Col span={{ base: 12, lg: 8 }} className={classes.chartCol}>
               <Group justify="space-between" align="center" mb={6} gap="xs">
                 <Title order={2} className={classes.sectionTitle}>
-                  Top {top.length} by ECI
+                  Top {top.length} by ECI{chart.added.size > 0 && ` + ${chart.added.size} added`}
                 </Title>
                 <SegmentedControl<TopView>
                   size="xs"
@@ -180,10 +189,13 @@ export function App({ data }: { data: Promise<SiteData> }) {
                   : "Every model, including ones their lab has since matched or beaten."}
               </Text>
               <Box mb="sm">
+                <ModelPicker models={all} value={pickedKnown} onChange={setPicked} />
+              </Box>
+              <Box mb="sm">
                 <LeaderboardKey />
               </Box>
-              {top.length > 0 ? (
-                <Leaderboard rows={top} />
+              {chart.rows.length > 0 ? (
+                <Leaderboard rows={chart.rows} added={chart.added} onRemove={unpick} />
               ) : (
                 <Text c="dimmed" py="xl">
                   No models match these filters.

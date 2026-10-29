@@ -1,4 +1,4 @@
-import { Badge, Group, Tooltip } from "@mantine/core";
+import { Badge, CloseButton, Group, Tooltip } from "@mantine/core";
 import { NEW_WITHIN_DAYS } from "../config";
 import type { Row } from "../data";
 
@@ -9,6 +9,25 @@ export function NewMark() {
         new
       </Badge>
     </Tooltip>
+  );
+}
+
+/** Marks a model the user added to the chart, with a button to take it off again. */
+export function AddedMark({ name, onRemove }: { name: string; onRemove: () => void }) {
+  return (
+    <Badge
+      size="sm"
+      variant="light"
+      color="blue"
+      c="var(--mantine-color-text)"
+      tt="none"
+      pr={2}
+      rightSection={
+        <CloseButton size="xs" onClick={onRemove} aria-label={`Remove ${name} from the chart`} />
+      }
+    >
+      added
+    </Badge>
   );
 }
 
