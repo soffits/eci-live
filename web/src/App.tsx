@@ -373,7 +373,6 @@ export function App({
                       added={chart.added}
                       onRemove={unpick}
                       skipped={defaults.skipped}
-                      minBenchmarks={minBenchmarks}
                       othersOf={(r) => siblings(r, all)}
                       onAdd={pick}
                       axisLabel={isGeneral ? "ECI" : preset.label}
