@@ -37,7 +37,7 @@ jobs:
             git worktree add --orphan -b data history
           fi
 
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.3.3
 
       - name: Refit ECI and check drift against Epoch's scores
         id: refit
