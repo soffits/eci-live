@@ -38,7 +38,11 @@ export function Leaderboard({ rows }: { rows: Row[] }) {
   const low = Math.min(...rows.map((r) => r.ci_low ?? r.eci));
   const high = Math.max(...rows.map((r) => r.ci_high ?? r.eci));
   // ECI has no natural zero, so bars start well below the weakest model shown.
-  const domain = [Math.floor((low - (high - low) * 0.6) / 5) * 5, Math.ceil(high)];
+  // Recharts grows bars from 0 whenever 0 is inside the domain, so never go below it.
+  const domain = [
+    Math.max(0, Math.floor((low - (high - low) * 0.6) / 5) * 5),
+    Math.ceil(high / 5) * 5,
+  ];
   const labelWidth = narrow ? 128 : 320;
 
   const renderTick = ({ x = 0, y = 0, payload }: TickProps) => {

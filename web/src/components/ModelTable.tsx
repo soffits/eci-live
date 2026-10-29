@@ -115,7 +115,7 @@ export function ModelTable({ rows }: { rows: Row[] }) {
                 <Text size="sm" fw={800} ff="monospace">
                   {r.eci.toFixed(1)}
                 </Text>
-                <Text size="xs" c="dimmed" ff="monospace">
+                <Text size="xs" c="dimmed" ff="monospace" style={{ whiteSpace: "nowrap" }}>
                   {r.ci_low === null || r.ci_high === null
                     ? "anchor"
                     : `${r.ci_low.toFixed(1)}–${r.ci_high.toFixed(1)}`}

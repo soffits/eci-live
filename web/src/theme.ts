@@ -1,4 +1,4 @@
-import { createTheme } from "@mantine/core";
+import { Anchor, createTheme } from "@mantine/core";
 
 const font = "'Geist Variable', ui-sans-serif, system-ui, sans-serif";
 
@@ -9,4 +9,6 @@ export const theme = createTheme({
   primaryColor: "violet",
   defaultRadius: "md",
   cursorType: "pointer",
+  // Links take the size of the text around them.
+  components: { Anchor: Anchor.extend({ defaultProps: { inherit: true } }) },
 });

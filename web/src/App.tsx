@@ -114,9 +114,11 @@ export function App({ data }: { data: Promise<SiteData> }) {
             </Badge>
           </Group>
           <Group gap="xs">
-            <Anchor href={LINKS.repo} size="sm" c="dimmed" visibleFrom="xs">
-              Source &amp; data
-            </Anchor>
+            <Text size="sm" visibleFrom="xs">
+              <Anchor href={LINKS.repo} c="dimmed">
+                Source &amp; data
+              </Anchor>
+            </Text>
             <ThemeToggle />
           </Group>
         </Group>
