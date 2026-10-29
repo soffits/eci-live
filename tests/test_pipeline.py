@@ -26,6 +26,7 @@ def model(version: str, eci: float) -> ModelScore:
         p_first=None,
         weights="closed",
         accessibility="API access",
+        missing_areas=[],
     )
 
 
@@ -54,6 +55,7 @@ def snapshot(
         build={"commit": None, "run_url": None},
         models=models,
         groups=[],
+        core_areas=[],
     )
 
 

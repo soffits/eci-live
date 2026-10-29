@@ -91,14 +91,29 @@ def load(zip_path: Path) -> Variants:
     return Variants(table=table, data=data, best=domain.best_scores(data))
 
 
-def scores(fit: Fit, variants: Variants) -> list[ModelScore]:
-    """Every variant with at least one fitted benchmark, best first."""
+def missing_areas(benchmarks: list[str], tags: dict[str, list[str]]) -> list[str]:
+    """The CORE_AREAS none of `benchmarks` is tagged with."""
+    seen = {t for b in benchmarks for t in tags.get(b, [])}
+    return [area for area, domains in settings.CORE_AREAS if not seen & set(domains)]
+
+
+def scores(fit: Fit, variants: Variants, tags: dict[str, list[str]] | None) -> list[ModelScore]:
+    """Every variant with at least one fitted benchmark, best first. `tags` are the hub's
+    domain tags per benchmark (None if unread: coverage unknown, nobody excluded for it)."""
     scored = domain.fixed_fit(
         fit, variants.best, None, domain.seed_for(0), settings.RESAMPLES_PER_DRAW
     )
     versions = [str(v) for v in scored.central.index]
     interval = scored.interval()
-    ranked = scored.benchmarks.to_numpy() >= settings.RANK_MIN_BENCHMARKS
+    fitted = set(fit.edi["benchmark"])
+    used = {
+        str(v): [str(b) for b in row.dropna().index if b in fitted]
+        for v, row in variants.best.unstack().iterrows()
+    }
+    missing = {v: None if tags is None else missing_areas(used.get(v, []), tags) for v in versions}
+    ranked = (scored.benchmarks.to_numpy() >= settings.RANK_MIN_BENCHMARKS) & np.array(
+        [not missing[v] for v in versions]
+    )
     stats: dict[str, dict[Any, Any]] = (
         {
             str(k): v
@@ -136,6 +151,7 @@ def scores(fit: Fit, variants: Variants) -> list[ModelScore]:
                 p_first=None if rank is None else float(rank["p_first"]),
                 weights=weights_of(access),
                 accessibility=access,
+                missing_areas=missing[v],
             )
         )
     return sorted(out, key=lambda m: (-m["eci"], m["name"]))

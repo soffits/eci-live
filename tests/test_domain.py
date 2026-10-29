@@ -147,7 +147,7 @@ def test_presets_follow_epochs_rule(synthetic_zip: Path) -> None:
 def test_fit_json_has_the_variant_input_and_model_facts(
     synthetic_zip: Path, fit: refit.Fit, found: variants.Variants
 ) -> None:
-    models = variants.scores(fit, found)
+    models = variants.scores(fit, found, None)
     snap = Snapshot(
         schema=settings.SCHEMA_VERSION,
         id="s",
@@ -164,6 +164,7 @@ def test_fit_json_has_the_variant_input_and_model_facts(
         build={"commit": None, "run_url": None},
         models=models,
         groups=refit.group_scores(fit),
+        core_areas=[],
     )
     details = detail.build(synthetic_zip, [snap], fit, found)
     data = fitdata.build(fit, found, snap, details)

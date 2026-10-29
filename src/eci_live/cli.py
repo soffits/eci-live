@@ -19,7 +19,15 @@ from eci_live import (
     source,
     variants,
 )
-from eci_live.schema import Domains, FitInfo, InputInfo, Preset, Snapshot
+from eci_live.schema import (
+    CoreArea,
+    DomainBenchmark,
+    Domains,
+    FitInfo,
+    InputInfo,
+    Preset,
+    Snapshot,
+)
 
 
 def _parse_args(argv: list[str] | None) -> argparse.Namespace:
@@ -63,19 +71,28 @@ def _warn(title: str, error: Exception) -> None:
     print(f"::warning title={title}::{error}", file=sys.stderr)
 
 
-def _domains(
-    result: refit.Fit, best: variants.Variants, zip_path: Path, snap_id: str, work_dir: Path
-) -> Domains | None:
-    """Software engineering and Math ECIs per variant from the hub's domain tags; None (with
-    a warning) if the hub can't be read, so the general index still publishes."""
+def _hub(
+    result: refit.Fit, zip_path: Path, snap_id: str, work_dir: Path
+) -> tuple[InputInfo, list[DomainBenchmark]] | None:
+    """The hub's domain tags for the index benchmarks; None (with a warning) if the hub
+    can't be read, so the index still publishes (without domains or coverage)."""
     try:
         module, entries = hub.fetch(settings.HUB_PAGE_URL, work_dir / settings.HUB_ASSET)
     except (hub.HubError, URLError, OSError) as error:
-        _warn("Domain tags unavailable; publishing without domain ECIs", error)
+        _warn("Domain tags unavailable; publishing without domain ECIs or coverage", error)
         return None
     module["archive_url"] = provenance.archive_url(snap_id, settings.HUB_ASSET)
     metadata = load_benchmark_metadata(download_benchmark_data(zip_path))
-    tagged = hub.match(entries, list(result.edi["benchmark"]), metadata)
+    return module, hub.match(entries, list(result.edi["benchmark"]), metadata)
+
+
+def _domains(
+    result: refit.Fit,
+    found: variants.Variants,
+    module: InputInfo,
+    tagged: list[DomainBenchmark],
+) -> Domains:
+    """Software engineering and Math ECIs per variant from the hub's domain tags."""
     presets = []
     for i, (preset_id, label, tag) in enumerate(settings.DOMAIN_PRESETS):
         chosen = hub.in_domain(tagged, tag)
@@ -86,7 +103,7 @@ def _domains(
                 domain=tag,
                 benchmarks=chosen,
                 scores=domain.scores(
-                    result, best.best, chosen, domain.seed_for(i + 1), settings.RESAMPLES_PER_DRAW
+                    result, found.best, chosen, domain.seed_for(i + 1), settings.RESAMPLES_PER_DRAW
                 ),
             )
         )
@@ -106,6 +123,8 @@ def _new_snapshot(
     result = refit.fit(zip_path, bootstrap_samples)
     found = variants.load(zip_path)
     snap_id = history.snapshot_id(info["fetched_at"], info["sha256"])
+    hub_tags = _hub(result, zip_path, snap_id, work_dir)
+    tags = None if hub_tags is None else {b["benchmark"]: b["domains"] for b in hub_tags[1]}
     snapshot = Snapshot(
         schema=settings.SCHEMA_VERSION,
         id=snap_id,
@@ -120,24 +139,27 @@ def _new_snapshot(
             rank_min_benchmarks=settings.RANK_MIN_BENCHMARKS,
         ),
         build=provenance.build_info(),
-        models=variants.scores(result, found),
+        models=variants.scores(result, found, tags),
         groups=refit.group_scores(result),
+        core_areas=[CoreArea(name=n, domains=list(d)) for n, d in settings.CORE_AREAS],
     )
-    if (domains := _domains(result, found, zip_path, snap_id, work_dir)) is not None:
-        snapshot["domains"] = domains
+    if hub_tags is not None:
+        snapshot["domains"] = _domains(result, found, *hub_tags)
     return snapshot, result, found
 
 
 def _summary(snap: Snapshot) -> str:
     models = snap["models"]
     ranked = sum(m["rank_low"] is not None for m in models)
+    partial = sum(bool(m["missing_areas"]) for m in models)
     top = next((m for m in models if m["rank_low"] is not None), None)
     return "\n".join(
         [
             f"### ECI snapshot `{snap['id']}`",
             f"- input SHA-256 `{snap['input']['sha256']}`",
             f"- {len(models)} variants of {len(snap['groups'])} fitted model groups; "
-            f"{ranked} with at least {snap['fit']['rank_min_benchmarks']} benchmarks",
+            f"{ranked} all-round with at least {snap['fit']['rank_min_benchmarks']} benchmarks; "
+            f"{partial} with incomplete coverage",
             f"- top: {top['name']} {top['eci']}" if top else "- top: none",
             *[
                 f"- {p['label']}: {len(p['benchmarks'])} benchmarks, {len(p['scores'])} variants"

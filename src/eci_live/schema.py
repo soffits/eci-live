@@ -60,6 +60,16 @@ class ModelScore(TypedDict):
     p_first: float | None
     weights: Weights
     accessibility: str | None
+    # Core areas (Snapshot.core_areas) its benchmarks don't cover; empty for an all-round
+    # variant, None when the hub's tags couldn't be read.
+    missing_areas: list[str] | None
+
+
+class CoreArea(TypedDict):
+    """An area the General (all-round) index needs covered, as hub domain tags."""
+
+    name: str
+    domains: list[str]
 
 
 class GroupScore(TypedDict):
@@ -121,6 +131,7 @@ class Snapshot(TypedDict):
     # Variants, best first.
     models: list[ModelScore]
     groups: list[GroupScore]
+    core_areas: list[CoreArea]
     # Absent when the hub couldn't be read.
     domains: NotRequired[Domains]
 

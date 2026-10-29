@@ -20,7 +20,7 @@ def fitted(synthetic_zip: Path) -> Fitted:
 
 def _snapshot(fitted: Fitted, shift: float = 0.0, group_shift: float = 0.0) -> Snapshot:
     result, found = fitted
-    models = [m | {"eci": round(m["eci"] + shift, 2)} for m in variants.scores(result, found)]
+    models = [m | {"eci": round(m["eci"] + shift, 2)} for m in variants.scores(result, found, None)]
     groups = [g | {"eci": round(g["eci"] + group_shift, 2)} for g in refit.group_scores(result)]
     return Snapshot(
         schema=settings.SCHEMA_VERSION,
@@ -44,6 +44,7 @@ def _snapshot(fitted: Fitted, shift: float = 0.0, group_shift: float = 0.0) -> S
         build={"commit": None, "run_url": None},
         models=models,
         groups=groups,
+        core_areas=[],
     )
 
 

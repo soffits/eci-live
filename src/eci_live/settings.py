@@ -18,9 +18,19 @@ CI_LEVEL: Final = 0.90
 # resamples of a variant's own results for each bootstrap draw (500 x 10 = 5,000 samples, as
 # Epoch does for its domain ECIs).
 RESAMPLES_PER_DRAW: Final = 10
-# Rank intervals and the chance of #1 count variants with at least this many benchmarks,
-# eci-public's own minimum for a model to enter the fit; thinner ones would claim #1 by noise.
+# Rank intervals and the chance of #1 count all-round variants (CORE_AREAS) with at least this
+# many benchmarks, eci-public's own minimum for a model to enter the fit; thinner ones would
+# claim #1 by noise.
 RANK_MIN_BENCHMARKS: Final = 4
+# The General index is all-round: a variant is ranked on it only if the benchmarks behind its
+# score cover every core area, an area being covered by any benchmark the hub tags with one
+# of its domains (so the rule follows the hub's tags, not a list of benchmarks).
+CORE_AREAS: Final = (
+    ("Maths & reasoning", ("Mathematics", "Conceptual reasoning")),
+    ("Coding", ("Software engineering",)),
+    ("Agentic tasks", ("Agent", "Computer use")),
+    ("Knowledge", ("World knowledge", "Science")),
+)
 HUB_PAGE_URL: Final = "https://epoch.ai/eci"
 DOMAIN_PRESETS: Final = (
     ("software", "Software engineering ECI", "Software engineering"),
