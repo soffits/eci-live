@@ -42,11 +42,9 @@
   font-variant-numeric: tabular-nums;
 }
 
-.truncate {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.topModel {
   font-size: 22px;
+  line-height: 1.15;
 }
 
 .pulse {

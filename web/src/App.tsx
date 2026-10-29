@@ -140,7 +140,7 @@ export function App({ data }: { data: Promise<SiteData> }) {
               top && (
                 <Group gap={8} wrap="nowrap">
                   <LabLogo lab={top.lab} size={24} />
-                  <span className={classes.truncate}>{top.name}</span>
+                  <span className={classes.topModel}>{top.name}</span>
                 </Group>
               )
             }

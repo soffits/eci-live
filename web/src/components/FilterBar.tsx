@@ -1,4 +1,4 @@
-import { Box, Group, MultiSelect, RangeSlider, SegmentedControl, Text } from "@mantine/core";
+import { Box, Group, Input, MultiSelect, RangeSlider, SegmentedControl, Text } from "@mantine/core";
 import { type Filters, monthLabel, type WeightsFilter } from "../filters";
 import { LabLogo } from "./LabLogo";
 
@@ -16,9 +16,7 @@ export function FilterBar({ value, onChange, labs, bounds, shown, total }: Props
   return (
     <Group gap="lg" align="flex-end" wrap="wrap">
       <Box>
-        <Text size="xs" fw={600} c="dimmed" mb={4}>
-          Weights
-        </Text>
+        <Input.Label display="block">Weights</Input.Label>
         <SegmentedControl<WeightsFilter>
           value={value.weights}
           onChange={(weights) => onChange({ ...value, weights })}
@@ -49,9 +47,9 @@ export function FilterBar({ value, onChange, labs, bounds, shown, total }: Props
         )}
       />
       <Box style={{ flex: "2 1 260px" }} pb={6}>
-        <Text size="xs" fw={600} c="dimmed" mb={8}>
+        <Input.Label display="block" mb={8}>
           Released {monthLabel(value.months[0])} – {monthLabel(value.months[1])}
-        </Text>
+        </Input.Label>
         <RangeSlider
           min={bounds[0]}
           max={bounds[1]}
