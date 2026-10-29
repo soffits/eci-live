@@ -92,11 +92,9 @@ export function Leaderboard({
   const chartHeight = rows.length * rowHeight + AXIS_HEIGHT * (bottomAxis ? 2 : 1) + 8;
   const plotWidth = width - labelWidth - (stacked ? STACKED_SIDE : VALUE_COLUMN);
 
-  const gapBefore = (row: Row): number => {
-    const i = rows.indexOf(row);
-    const previous = rows[i - 1];
-    return previous && !row.tiedFirst ? row.rank - previous.rank - 1 : 0;
-  };
+  // Rows are numbered by their place in this chart, so hidden or filtered-out models don't
+  // leave holes; the rank among every model is in the tooltip and the table.
+  const placeOf = (row: Row): number => rows.indexOf(row) + 1;
 
   const renderTick = ({ y = 0, payload }: TickProps) => {
     const row = payload && byName.get(payload.value);
@@ -104,21 +102,15 @@ export function Leaderboard({
     const box = stacked
       ? { x: 0, y: Number(y) - rowHeight / 2, width, height: STACKED_NAME_HEIGHT }
       : { x: 0, y: Number(y) - rowHeight / 2, width: labelWidth, height: rowHeight };
-    const hidden = gapBefore(row);
     return (
       <foreignObject {...box}>
         <div className={classes.tick} data-stacked={stacked || undefined}>
           <span
             className={classes.rank}
             data-tied={row.tiedFirst || undefined}
-            data-gap={hidden > 0 || undefined}
-            title={
-              hidden > 0
-                ? `${hidden} older ${hidden === 1 ? "model ranks" : "models rank"} between this and the row above`
-                : undefined
-            }
+            title={`Rank ${row.tiedFirst ? "=1" : row.rank} among all models`}
           >
-            {row.tiedFirst ? "=1" : row.rank}
+            {row.tiedFirst ? "=1" : placeOf(row)}
           </span>
           <LabLogo lab={row.lab} size={16} />
           <ModelLink name={row.name} className={classes.name} title={row.name} />
