@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -17,6 +18,9 @@ def model(name: str, eci: float, official: float | None = None) -> ModelScore:
         ci_low=eci - 2,
         ci_high=eci + 2,
         benchmarks=5,
+        rank_low=None,
+        rank_high=None,
+        p_first=None,
         weights="closed",
         accessibility="API access",
         official_eci=official,
@@ -125,6 +129,15 @@ def test_model_scores_prefer_published_metadata_and_flag_unpublished() -> None:
         "2026-01-01",
         150.3,
     )
+
+
+def test_rank_stats_give_rank_intervals_and_chance_of_first() -> None:
+    draws = np.array([[3.0, 2.0, 1.0], [2.0, 3.0, 1.0], [3.0, 2.0, 1.0], [3.0, 1.0, 2.0]])
+    stats = refit.rank_stats(draws, ["a", "b", "c"])
+    assert stats["p_first"].to_dict() == {"a": 0.75, "b": 0.25, "c": 0.0}
+    intervals = stats[["rank_low", "rank_high"]].to_dict("index")
+    assert intervals["a"] == {"rank_low": 1, "rank_high": 2}
+    assert intervals["c"] == {"rank_low": 2, "rank_high": 3}
 
 
 def test_snapshot_id_is_sortable_and_tag_safe() -> None:

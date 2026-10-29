@@ -40,6 +40,9 @@ class ModelScore(TypedDict):
     ci_low: float | None
     ci_high: float | None
     benchmarks: int
+    rank_low: int | None
+    rank_high: int | None
+    p_first: float | None
     weights: Weights
     accessibility: str | None
     official_eci: float | None
