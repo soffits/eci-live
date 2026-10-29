@@ -45,9 +45,17 @@ function CiCapsule({ row, scale }: { row: Row; scale: (v: number) => number }) {
   return (
     <Progress.Root size={10} w={120} radius="xl" aria-hidden>
       <Progress.Section value={low} color="transparent" />
-      <Progress.Section value={Math.max(mid - tick / 2 - low, 0)} color={color} opacity={0.4} />
+      <Progress.Section
+        value={Math.max(mid - tick / 2 - low, 0)}
+        color={color}
+        opacity="var(--eci-capsule-opacity)"
+      />
       <Progress.Section value={tick} color={color} />
-      <Progress.Section value={Math.max(high - mid - tick / 2, 0)} color={color} opacity={0.4} />
+      <Progress.Section
+        value={Math.max(high - mid - tick / 2, 0)}
+        color={color}
+        opacity="var(--eci-capsule-opacity)"
+      />
     </Progress.Root>
   );
 }
@@ -205,7 +213,11 @@ export function ModelTable({ rows, hasPrevious }: { rows: Row[]; hasPrevious: bo
             visibleMediaQuery: "(min-width: 48em)",
             render: (r) => (
               <Tooltip label={r.accessibility ?? "Access not recorded by Epoch"}>
-                <Badge size="sm" variant="light" color={WEIGHTS[r.weights].color}>
+                <Badge
+                  size="sm"
+                  variant={WEIGHTS[r.weights].variant}
+                  color={WEIGHTS[r.weights].color}
+                >
                   {r.weights === "unknown"
                     ? (r.accessibility ?? "Unknown")
                     : WEIGHTS[r.weights].label}

@@ -20,10 +20,18 @@ export const TABLE_PAGE_SIZE = 25;
 /** A model is "new" if it was released at most this many days before the snapshot. */
 export const NEW_WITHIN_DAYS = 30;
 
-export const WEIGHTS: Record<Weights, { label: string; hint: string; color: string }> = {
-  open: { label: "Open", hint: "Weights are downloadable", color: "teal" },
-  closed: { label: "Closed", hint: "API, hosted or unreleased", color: "gray" },
-  unknown: { label: "Limited / unknown", hint: "Limited access, or not recorded", color: "yellow" },
+export const WEIGHTS: Record<
+  Weights,
+  { label: string; hint: string; color: string; variant: "light" | "default" }
+> = {
+  open: { label: "Open", hint: "Weights are downloadable", color: "teal", variant: "light" },
+  closed: { label: "Closed", hint: "API, hosted or unreleased", color: "gray", variant: "default" },
+  unknown: {
+    label: "Limited / unknown",
+    hint: "Limited access, or not recorded",
+    color: "yellow",
+    variant: "light",
+  },
 };
 
 export const LINKS = {
@@ -42,25 +50,26 @@ interface Lab {
   logo?: string;
 }
 
-// Colours are chosen to stay distinct from each other first, on-brand second.
+// Colours are chosen to stay distinct from each other first, on-brand second. Dark
+// variants are brighter so they stay vivid on a near-black surface.
 const LABS: Record<string, Lab> = {
-  OpenAI: { color: "#10A37F", logo: openai },
-  Anthropic: { color: "#D97757", logo: anthropic },
-  "Google DeepMind": { color: "#4285F4", logo: deepmind },
-  Google: { color: "#4285F4", logo: google },
+  OpenAI: { color: "#10A37F", dark: "#2EE6B4", logo: openai },
+  Anthropic: { color: "#D97757", dark: "#FF8F66", logo: anthropic },
+  "Google DeepMind": { color: "#4285F4", dark: "#6AA6FF", logo: deepmind },
+  Google: { color: "#4285F4", dark: "#6AA6FF", logo: google },
   xAI: { color: "#1F2937", dark: "#E5E7EB", logo: xai },
-  "Meta AI": { color: "#A855F7", logo: meta },
-  DeepSeek: { color: "#06B6D4", logo: deepseek },
-  Alibaba: { color: "#F59E0B", logo: alibaba },
-  "Mistral AI": { color: "#EF4444", logo: mistral },
-  Moonshot: { color: "#6366F1", logo: moonshot },
-  "Z.ai (Zhipu AI)": { color: "#EC4899", logo: zai },
-  MiniMax: { color: "#F43F5E", logo: minimax },
-  Microsoft: { color: "#0EA5E9", logo: microsoft },
-  Nvidia: { color: "#76B900", logo: nvidia },
+  "Meta AI": { color: "#A855F7", dark: "#C58CFF", logo: meta },
+  DeepSeek: { color: "#06B6D4", dark: "#2FE0F5", logo: deepseek },
+  Alibaba: { color: "#F59E0B", dark: "#FFC53D", logo: alibaba },
+  "Mistral AI": { color: "#EF4444", dark: "#FF7070", logo: mistral },
+  Moonshot: { color: "#6366F1", dark: "#8F94FF", logo: moonshot },
+  "Z.ai (Zhipu AI)": { color: "#EC4899", dark: "#FF6FBA", logo: zai },
+  MiniMax: { color: "#F43F5E", dark: "#FF6B85", logo: minimax },
+  Microsoft: { color: "#0EA5E9", dark: "#3CC4FF", logo: microsoft },
+  Nvidia: { color: "#76B900", dark: "#9BE01F", logo: nvidia },
 };
 
-const OTHER: Lab = { color: "#94A3B8" };
+const OTHER: Lab = { color: "#94A3B8", dark: "#B4BFCE" };
 
 export function labStyle(lab: string, dark: boolean): { color: string; logo?: string } {
   const entry = LABS[lab] ?? OTHER;

@@ -21,8 +21,10 @@ export function LabLegend({ labs, selected, onToggle }: Props) {
           onChange={() => onToggle(lab)}
           color={colorOf(lab)}
         >
-          <ColorSwatch component="span" color={colorOf(lab)} size={8} mr={6} withShadow={false} />
-          {lab}
+          <Group component="span" gap={6} wrap="nowrap">
+            <ColorSwatch component="span" color={colorOf(lab)} size={8} withShadow={false} />
+            {lab}
+          </Group>
         </Chip>
       ))}
     </Group>

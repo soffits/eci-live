@@ -1,4 +1,4 @@
-import { Group, Progress, Stack, Text, Tooltip } from "@mantine/core";
+import { Group, isLightColor, lighten, Progress, Stack, Text, Tooltip } from "@mantine/core";
 import type { ReactNode } from "react";
 import type { Row, Snapshot } from "../data";
 import { formatPercent, formatRange } from "../format";
@@ -6,6 +6,9 @@ import classes from "./Insights.module.css";
 import { LabLogo, useLabColor } from "./LabLogo";
 
 const LAB_ROWS = 7;
+const TINT_STEP = 0.35;
+/** Narrower segments are left unlabelled; their share is in the list below. */
+const MIN_LABELLED_SHARE = 0.08;
 
 function Block({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -39,6 +42,13 @@ function WhoIsFirst({ rows }: { rows: Row[] }) {
     .filter((r) => r.tiedFirst)
     .sort((a, b) => (b.p_first ?? 0) - (a.p_first ?? 0));
   if (contenders.length === 0) return null;
+  // Repeat models from one lab get ever lighter tints of its colour, so segments stay apart.
+  const seen = new Map<string, number>();
+  const segmentColors = contenders.map((r) => {
+    const repeat = seen.get(r.lab) ?? 0;
+    seen.set(r.lab, repeat + 1);
+    return lighten(colorOf(r.lab), Math.min(repeat * TINT_STEP, 0.7));
+  });
   const title =
     contenders.length > 1 ? `${contenders.length}-way statistical tie for #1` : "Clear #1";
   return (
@@ -49,16 +59,26 @@ function WhoIsFirst({ rows }: { rows: Row[] }) {
       <Text size="xs" c="dimmed" mb="sm">
         Share of the bootstrap refits in which each model ranks first.
       </Text>
-      <Progress.Root size={14} radius="xl" mb="sm">
-        {contenders.map((r, i) => (
-          <Tooltip key={r.name} label={`${r.name}: ${formatPercent(r.p_first ?? 0)}`}>
-            <Progress.Section
-              value={(r.p_first ?? 0) * 100}
-              color={colorOf(r.lab)}
-              style={i > 0 ? { borderLeft: "2px solid var(--eci-hero-surface)" } : undefined}
-            />
-          </Tooltip>
-        ))}
+      <Progress.Root size={22} radius="xl" mb="sm">
+        {contenders.map((r, i) => {
+          const color = segmentColors[i] ?? colorOf(r.lab);
+          const share = r.p_first ?? 0;
+          return (
+            <Tooltip key={r.name} label={`${r.name}: ${formatPercent(share)}`}>
+              <Progress.Section
+                value={share * 100}
+                color={color}
+                style={i > 0 ? { borderLeft: "2px solid var(--eci-hero-surface)" } : undefined}
+              >
+                {share >= MIN_LABELLED_SHARE && (
+                  <Progress.Label c={isLightColor(color) ? "dark.9" : "white"} fz={11}>
+                    {formatPercent(share)}
+                  </Progress.Label>
+                )}
+              </Progress.Section>
+            </Tooltip>
+          );
+        })}
       </Progress.Root>
       <Stack gap={6}>
         {contenders.map((r) => (
@@ -100,7 +120,11 @@ function NotOnEpoch({ rows }: { rows: Row[] }) {
       </Text>
       <Stack gap={6}>
         {previews.map((r) => (
-          <ModelLine key={r.name} row={r} value={`${r.eci.toFixed(1)} · ${r.benchmarks} bm`} />
+          <ModelLine
+            key={r.name}
+            row={r}
+            value={`${r.eci.toFixed(1)} · ${r.benchmarks} benchmarks`}
+          />
         ))}
       </Stack>
     </Block>
