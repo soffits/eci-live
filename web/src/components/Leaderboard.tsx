@@ -43,7 +43,7 @@ export function Leaderboard({ rows }: { rows: Row[] }) {
   const high = Math.max(...rows.map((r) => r.ci_high ?? r.eci));
   const ticks = niceTicks(low, high, stacked ? 3 : 5);
   const domain = [ticks[0] ?? low, ticks.at(-1) ?? high];
-  const labelWidth = stacked ? 4 : 360;
+  const labelWidth = stacked ? 4 : 380;
   const tied = rows.filter((r) => r.tiedFirst);
 
   const renderTick = ({ x = 0, y = 0, payload }: TickProps) => {
@@ -67,7 +67,7 @@ export function Leaderboard({ rows }: { rows: Row[] }) {
           <span className={classes.name} title={row.name}>
             {row.name}
           </span>
-          {row.isNew && !(stacked && !row.onEpoch) && <NewMark />}
+          {row.isNew && row.onEpoch && <NewMark />}
           {!row.onEpoch && <PreviewMark row={row} compact />}
           {stacked && <span className={classes.stackedValue}>{row.eci.toFixed(1)}</span>}
         </div>
@@ -93,7 +93,7 @@ export function Leaderboard({ rows }: { rows: Row[] }) {
           rx={8}
           className={classes.capsule}
           fill={color}
-          fillOpacity={preview ? 0.12 : 0.3}
+          fillOpacity={preview ? 0.12 : 0.4}
           stroke={color}
           strokeOpacity={preview ? 1 : 0}
           strokeDasharray={preview ? "4 3" : undefined}
@@ -103,9 +103,9 @@ export function Leaderboard({ rows }: { rows: Row[] }) {
           cx={cx}
           cy={cy}
           r={6.5}
-          fill={preview ? "var(--mantine-color-body)" : color}
-          stroke={color}
-          strokeWidth={preview ? 2.5 : 0}
+          fill={preview ? "var(--hero-surface)" : color}
+          stroke={preview ? color : "var(--hero-surface)"}
+          strokeWidth={preview ? 2.5 : 2}
         />
         {!stacked && (
           <text x={x + width + 10} y={cy} dominantBaseline="central" className={classes.value}>

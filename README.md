@@ -20,6 +20,9 @@ This project is not affiliated with or endorsed by Epoch AI.
 2. It fits ECI with [`epoch-research/eci-public`](https://github.com/epoch-research/eci-public),
    pinned to one exact commit in [`pyproject.toml`](pyproject.toml). The fit uses
    500 bootstrap refits with a fixed seed, which give 90% confidence intervals.
+   The same refits also give a 90% interval for each model's rank and the share
+   of refits in which it ranks first. When several models could plausibly be #1,
+   the page shows them as tied.
 3. It compares the refit with the official scores shipped in the same zip. The run
    fails, and publishes nothing, if any model on Epoch's list is missing or any
    shared model differs by more than 1.5 ECI points.
