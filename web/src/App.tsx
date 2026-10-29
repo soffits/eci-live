@@ -1,7 +1,6 @@
 import {
   ActionIcon,
   Anchor,
-  Badge,
   Box,
   Container,
   Divider,
@@ -157,9 +156,6 @@ export function App({ data }: { data: Promise<SiteData> }) {
             <Text fw={800} size="lg" lts={-0.3}>
               ECI Live
             </Text>
-            <Badge variant="light" color="gray" radius="sm">
-              Unofficial refit
-            </Badge>
           </Group>
           <Group gap="md" wrap="nowrap">
             <Text size="sm" c="dimmed" visibleFrom="sm" className="num">

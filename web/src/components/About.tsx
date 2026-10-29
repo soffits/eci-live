@@ -108,8 +108,9 @@ export function About({ snapshot }: { snapshot: Snapshot }) {
             <Anchor href={LINKS.paper}>A Rosetta Stone for AI Benchmarks</Anchor> (Ho et al.). Logos
             from Lobe Icons. Built by Sakina.
           </Text>
-          <Text fw={600} className={classes.prose}>
-            This is an unofficial refit, not affiliated with or endorsed by Epoch AI.
+          <Text c="dimmed" className={classes.prose}>
+            ECI Live is an independent refit of Epoch AI's index and is not affiliated with Epoch
+            AI.
           </Text>
         </Stack>
       </SimpleGrid>

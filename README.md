@@ -1,6 +1,6 @@
 # ECI Live
 
-**An unofficial, daily refit of the [Epoch Capabilities Index](https://epoch.ai/benchmarks/eci).**
+**A daily refit of the [Epoch Capabilities Index](https://epoch.ai/benchmarks/eci).**
 Live at <https://soffits.github.io/eci-live/>.
 
 Epoch AI publishes its benchmark data every day, but its official ECI scores are

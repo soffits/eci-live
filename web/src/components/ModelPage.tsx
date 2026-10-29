@@ -528,7 +528,7 @@ function Body({ row, slug, site }: { row: Row; slug: string; site: SiteData }) {
       </Section>
       <Text size="sm" c="dimmed" className={classes.prose}>
         Benchmark data by <Anchor href={LINKS.epochData}>Epoch AI</Anchor>, licensed{" "}
-        <Anchor href={LINKS.ccBy}>CC BY 4.0</Anchor>. Scores here come from an unofficial refit of
+        <Anchor href={LINKS.ccBy}>CC BY 4.0</Anchor>. Scores here come from this site's refit of
         snapshot {detail.snapshot}, not from Epoch AI.
       </Text>
     </Stack>

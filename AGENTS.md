@@ -8,7 +8,7 @@ Epoch AI publishes its benchmark data daily, but its official ECI scores lag beh
 
 - Transparency is the point: every published number must be traceable to a public workflow run, the exact input data, and the pinned fitting code. No numbers computed off-CI.
 - Use Epoch's fitting code as a pinned dependency; never fork or re-implement the method.
-- Credit Epoch AI (data is CC-BY) visibly on the page. Say clearly that this is an unofficial refit.
+- Credit Epoch AI (data is CC-BY) visibly on the page. Say once, in one plain sentence in the About section, that this is an independent refit of Epoch AI's index, not affiliated with Epoch. Don't add an "unofficial" badge or label anywhere else (owner's decision).
 - Repository text is English. Conventional Commits. License: AGPL-3.0-only for code.
 - Public author name is Sakina; `soffits` is only the account handle.
 - Prefer maintained UI components and libraries over hand-written equivalents. Keep code small, typed, and free of dead code.
