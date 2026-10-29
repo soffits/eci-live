@@ -277,8 +277,8 @@ export function App({
           </Group>
           <Group gap="md" wrap="nowrap">
             <Text size="sm" c="dimmed" visibleFrom="sm" className="num">
-              Refit {formatDate(latest.input.fetched_at)} · {latest.input.fetched_at.slice(11, 16)}{" "}
-              UTC
+              Updated {formatDate(latest.input.fetched_at)} ·{" "}
+              {latest.input.fetched_at.slice(11, 16)} UTC
             </Text>
             <Text size="sm" visibleFrom="xs">
               <Anchor href={LINKS.repo}>GitHub</Anchor>
@@ -304,9 +304,11 @@ export function App({
                 today?
               </Title>
               <Text c="dimmed" className={classes.lede}>
-                The Epoch Capabilities Index, refit daily from Epoch AI's open benchmark data in
-                public CI, with 90% confidence intervals on every score and rank. Switch to a domain
-                to rank models on software engineering, math or cyber alone.
+                A daily capability index of AI models, each reasoning setting scored on its own,
+                computed in public CI from Epoch AI's open benchmark data, with 90% intervals on
+                every score and rank. General is all-round: a model is ranked only if it has been
+                tested on maths, coding, agentic tasks and knowledge. Switch to a domain to rank on
+                software engineering or math alone.
               </Text>
             </Stack>
 
@@ -395,7 +397,7 @@ export function App({
                 subtitle={
                   params.view === "domain"
                     ? `${domainPreset.label} against the general ECI. Above the dashed line, a model does better on these benchmarks than on the index as a whole.${isGeneral ? " Pick a domain above to switch." : ""}`
-                    : `Each dot is a model${isGeneral ? "" : ` scored on ${preset.label}`}. The stepped line joins the models that set a new record, named where space allows.`
+                    : `Each dot is a model's default variant${isGeneral ? "" : ` scored on ${preset.label}`}, plus any you added. The stepped line joins the ones that set a new record, named where space allows.`
                 }
               />
               <div className={classes.viewControls}>
@@ -454,7 +456,7 @@ export function App({
                 <SectionTitle
                   eyebrow="Interpreting the ECI"
                   title="What a score means on a benchmark"
-                  subtitle="An ECI value on its own is abstract. Each curve is a benchmark's fitted logistic curve: the score a model of that ECI is expected to get, after Epoch's rescaling (random guessing = 0%, the benchmark's ceiling = 100%). The dots are real results, placed at each model's general ECI."
+                  subtitle="An ECI value on its own is abstract. Each curve is a benchmark's fitted logistic curve: the score a model of that ECI is expected to get, after Epoch AI's rescaling (random guessing = 0%, the benchmark's ceiling = 100%). The dots are real results, placed at each variant's general ECI."
                 />
                 <Interpreting
                   fit={fit}
@@ -467,12 +469,12 @@ export function App({
 
             <section className={classes.card}>
               <SectionTitle
-                eyebrow="Every model"
+                eyebrow="Every variant"
                 title="Full table"
                 subtitle={
                   hasPrevious
-                    ? "Search, sort and page through every scored model. Δ is the change since the previous snapshot."
-                    : `Search, sort and page through every model${isGeneral ? "" : ` scored on ${preset.label}`}.`
+                    ? "Every scored variant, including provisional ones (not ranked here, with what they miss). Δ is the change since the previous snapshot."
+                    : `Every variant${isGeneral ? "" : ` scored on ${preset.label}`}, including provisional ones (not ranked here, with what they miss).`
                 }
               />
               <ModelTable rows={rows} hasPrevious={hasPrevious} intervals={preset.intervals} />
@@ -494,7 +496,7 @@ export function App({
           className={classes.footer}
         >
           <Text size="md" c="dimmed">
-            ECI Live by Sakina · code AGPL-3.0 · data Epoch AI, CC BY 4.0
+            ECI Live by Sakina · code AGPL-3.0 · data Epoch AI, CC BY 4.0 · method Epoch AI
           </Text>
           <Text size="md">
             <Anchor href={LINKS.repo}>Source and snapshot history</Anchor>

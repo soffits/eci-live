@@ -72,25 +72,36 @@ export function About({ snapshot }: { snapshot: Snapshot }) {
     <Stack gap={40}>
       <SimpleGrid cols={{ base: 1, md: 3 }} spacing={40}>
         <Stack gap="xs">
-          <Title order={3}>What is ECI?</Title>
+          <Title order={3}>What is this index?</Title>
           <Text c="dimmed" className={classes.prose}>
-            The <Anchor href={LINKS.epochEci}>Epoch Capabilities Index</Anchor> puts every AI model
-            on one capability scale. It is fitted jointly from dozens of benchmarks, so solving a
+            Every AI model variant on one capability scale: Epoch AI's{" "}
+            <Anchor href={LINKS.epochEci}>Capabilities Index (ECI)</Anchor> method, where solving a
             hard benchmark counts for more and models tested on different benchmarks can still be
-            compared. Two models fix the scale: Claude 3.5 Sonnet at 130 and GPT-5 at 150.
+            compared. Claude 3.5 Sonnet at 130 and GPT-5 at 150 fix the scale. Each variant, such as
+            a model's "max" or "high" reasoning setting, gets its own score.
+          </Text>
+          <Text c="dimmed" className={classes.prose}>
+            General is all-round: a variant is ranked only with at least {fit.rank_min_benchmarks}{" "}
+            benchmarks covering {snapshot.core_areas.map((a) => a.name.toLowerCase()).join(", ")},
+            by the tags of Epoch AI's benchmark hub. Others are provisional: listed, but not ranked.
           </Text>
         </Stack>
         <Stack gap="xs">
-          <Title order={3}>How this page is made</Title>
+          <Title order={3}>How it is made</Title>
           <List spacing={8} size="md" c="dimmed" className={classes.prose}>
             <List.Item>
               A public GitHub Actions run downloads Epoch AI's daily <Code>benchmark_data.zip</Code>{" "}
               and hashes it.
             </List.Item>
             <List.Item>
-              It fits ECI with Epoch's own <Anchor href={LINKS.eciPublic}>eci-public</Anchor>,
-              pinned to one commit, plus {fit.bootstrap_samples} bootstrap refits for{" "}
-              {Math.round(fit.ci_level * 100)}% intervals on scores and ranks.
+              It fits each benchmark's difficulty and slope with Epoch AI's{" "}
+              <Anchor href={LINKS.eciPublic}>eci-public</Anchor>, pinned to one commit, plus{" "}
+              {fit.bootstrap_samples} bootstrap refits.
+            </List.Item>
+            <List.Item>
+              Each variant is then scored on its own results, with {Math.round(fit.ci_level * 100)}%
+              intervals on scores and ranks from{" "}
+              {(fit.bootstrap_samples * fit.resamples_per_draw).toLocaleString("en")} draws.
             </List.Item>
             <List.Item>
               Every snapshot is kept on the{" "}
@@ -106,11 +117,11 @@ export function About({ snapshot }: { snapshot: Snapshot }) {
             <Anchor href={LINKS.paper} className={classes.keep}>
               A Rosetta Stone for AI Benchmarks
             </Anchor>{" "}
-            (Ho et al.). Logos from Lobe Icons. Built by Sakina.
+            (Ho et al.) and Epoch AI's <Anchor href={LINKS.eciPublic}>eci-public</Anchor>. Logos
+            from Lobe Icons. Built by Sakina.
           </Text>
           <Text c="dimmed" className={classes.prose}>
-            ECI Live is an independent refit of Epoch AI's index and is not affiliated with Epoch
-            AI.
+            ECI Live is an independent index and is not affiliated with Epoch AI.
           </Text>
         </Stack>
       </SimpleGrid>
@@ -153,7 +164,8 @@ export function About({ snapshot }: { snapshot: Snapshot }) {
             )}
           </Fact>
           <Fact label="Bootstrap">
-            {fit.bootstrap_samples} refits, seed {fit.bootstrap_seed}, {fit.bootstrap_chunks} chunks
+            {fit.bootstrap_samples} refits × {fit.resamples_per_draw} resamples, seed{" "}
+            {fit.bootstrap_seed}, {fit.bootstrap_chunks} chunks
           </Fact>
         </SimpleGrid>
       </div>
