@@ -145,15 +145,19 @@ export function Interpreting({
               tickLine={false}
               tickMargin={6}
               axisLine={{ stroke: "var(--eci-axis)" }}
-              label={{
-                value: "Score",
-                angle: -90,
-                position: "insideLeft",
-                offset: 10,
-                style: { textAnchor: "middle" },
-                fill: "var(--mantine-color-dimmed)",
-                fontSize: 12,
-              }}
+              label={
+                narrow
+                  ? undefined
+                  : {
+                      value: "Score",
+                      angle: -90,
+                      position: "insideLeft",
+                      offset: 10,
+                      style: { textAnchor: "middle" },
+                      fill: "var(--mantine-color-dimmed)",
+                      fontSize: 12,
+                    }
+              }
             />
             <Tooltip content={<DotTooltip />} wrapperStyle={{ userSelect: "none" }} />
             {picked.map((b, i) => (

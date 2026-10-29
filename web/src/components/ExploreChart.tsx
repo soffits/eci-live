@@ -80,8 +80,9 @@ function xAxisOf(view: View, points: Point[], narrow: boolean) {
     };
   }
   if (view === "compute") {
-    const first = Math.floor(lo);
-    const last = Math.ceil(hi);
+    // Whole powers of ten, with room so no point sits on the frame.
+    const first = Math.floor(lo - 0.15);
+    const last = Math.ceil(hi + 0.15);
     const ticks = Array.from({ length: last - first + 1 }, (_, i) => first + i);
     return {
       domain: [first, last] as [number, number],

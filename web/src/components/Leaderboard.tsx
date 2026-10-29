@@ -280,7 +280,7 @@ export function Leaderboard({
             ))}
           {!stacked && (
             <text
-              x={labelWidth - 22}
+              x={labelWidth - 30}
               y={AXIS_HEIGHT / 2}
               textAnchor="end"
               dominantBaseline="central"

@@ -6,7 +6,7 @@ import { TABLE_PAGE_SIZE, WEIGHTS } from "../config";
 import type { Row } from "../data";
 import { formatDate, formatRange, noInterval } from "../format";
 import { LabLogo, useLabColor } from "./LabLogo";
-import { MarkDots, NewMark, PreviewMark } from "./ModelBadges";
+import { MarkDots, MarkDotsKey, NewMark, PreviewMark } from "./ModelBadges";
 import { ModelLink } from "./ModelLink";
 import classes from "./ModelTable.module.css";
 
@@ -138,6 +138,11 @@ export function ModelTable({
         }}
         aria-label="Search models or labs"
       />
+      {narrow && (
+        <div className={`${classes.key} chrome`}>
+          <MarkDotsKey />
+        </div>
+      )}
       <DataTable
         records={records}
         idAccessor="name"
