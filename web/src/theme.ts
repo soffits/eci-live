@@ -7,15 +7,18 @@ import {
   Badge,
   Button,
   Chip,
+  Combobox,
   type CSSVariablesResolver,
   createTheme,
   Drawer,
   Input,
+  Menu,
   MultiSelect,
   Pill,
   Progress,
   RangeSlider,
   SegmentedControl,
+  Select,
   Spoiler,
   Switch,
   TextInput,
@@ -26,6 +29,14 @@ const font = "'Geist Variable', ui-sans-serif, system-ui, sans-serif";
 
 /** Marks interface chrome as not selectable; the rule lives in global.css. */
 const chrome = "chrome";
+
+// A raised surface with its own border: on the dark theme a shadow alone barely shows.
+const FLOATING = {
+  background: "var(--eci-floating)",
+  borderColor: "var(--eci-floating-border)",
+} as const;
+
+export const DROPDOWN = { shadow: "lg", radius: "md", offset: 6 } as const;
 
 export const theme = createTheme({
   fontFamily: font,
@@ -51,7 +62,14 @@ export const theme = createTheme({
     ActionIcon: ActionIcon.extend({ defaultProps: { radius: "xl" } }),
     Tooltip: Tooltip.extend({ defaultProps: { withArrow: true }, classNames: { tooltip: chrome } }),
     TextInput: TextInput.extend({ defaultProps: { radius: "xl" } }),
-    MultiSelect: MultiSelect.extend({ defaultProps: { radius: "xl" } }),
+    // Dropdowns float above the cards they open over: a clear shadow keeps them apart.
+    MultiSelect: MultiSelect.extend({ defaultProps: { radius: "xl", comboboxProps: DROPDOWN } }),
+    Select: Select.extend({ defaultProps: { comboboxProps: DROPDOWN } }),
+    Menu: Menu.extend({
+      defaultProps: { shadow: "lg", radius: "md" },
+      styles: { dropdown: FLOATING },
+    }),
+    Combobox: Combobox.extend({ styles: { dropdown: FLOATING } }),
     // The selected item is filled in the primary colour, readable on light and dark tracks.
     SegmentedControl: SegmentedControl.extend({
       defaultProps: { radius: "xl", color: "violet", withItemsBorders: false },
@@ -80,6 +98,8 @@ export const cssVariablesResolver: CSSVariablesResolver = () => ({
     "--mantine-color-placeholder": "#6b6e7d",
     "--mantine-color-default-border": "#d4d5de",
     "--eci-surface": "#ffffff",
+    "--eci-floating": "#ffffff",
+    "--eci-floating-border": "#c4c6d2",
     "--eci-hero-surface": "#ffffff",
     "--eci-card-border": "#d4d5de",
     "--eci-page-dots": "rgb(15 23 42 / 7%)",
@@ -97,6 +117,8 @@ export const cssVariablesResolver: CSSVariablesResolver = () => ({
     "--mantine-color-dimmed": "#bcbecb",
     "--mantine-color-placeholder": "#9a9cab",
     "--eci-surface": "#121317",
+    "--eci-floating": "#1d1e25",
+    "--eci-floating-border": "#3b3d48",
     "--eci-hero-surface": "#15161b",
     "--eci-card-border": "#2c2e36",
     "--eci-page-dots": "rgb(255 255 255 / 6%)",

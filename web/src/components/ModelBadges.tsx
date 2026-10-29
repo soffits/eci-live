@@ -75,7 +75,7 @@ export function VariantsMenu({
 }) {
   if (others.length === 0) return null;
   return (
-    <Menu position="bottom-start" withinPortal shadow="md" width={300}>
+    <Menu position="bottom-start" withinPortal width={300}>
       <Menu.Target>
         <Badge
           component="button"

@@ -29,3 +29,11 @@ body {
   -webkit-user-select: none;
   user-select: none;
 }
+
+/* Recharts makes chart layers focusable for keyboard use; a mouse click should not leave a
+   focus ring around the plot. Keyboard focus (focus-visible) keeps its outline. */
+.recharts-wrapper :focus:not(:focus-visible),
+.recharts-wrapper [tabindex="-1"]:focus,
+.recharts-surface:focus:not(:focus-visible) {
+  outline: none;
+}
