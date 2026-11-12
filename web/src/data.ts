@@ -243,20 +243,24 @@ export function toRows(data: SiteData, newWithinDays: number, fit?: FitData | nu
   });
 }
 
+// GitHub Pages lets browsers reuse a file for 10 minutes. The data changes
+// daily, so ask the server each time; an unchanged file costs a 304.
+const DATA_FETCH: RequestInit = { cache: "no-cache" };
+
 export async function loadDetail(slug: string): Promise<ModelDetail> {
-  const response = await fetch(`${import.meta.env.BASE_URL}models/${slug}.json`);
+  const response = await fetch(`${import.meta.env.BASE_URL}models/${slug}.json`, DATA_FETCH);
   if (!response.ok) throw new Error(`models/${slug}.json: HTTP ${response.status}`);
   return response.json();
 }
 
 /** The explore views' data; null if it is missing, so the rest of the page still works. */
 export async function loadFitData(): Promise<FitData | null> {
-  const response = await fetch(`${import.meta.env.BASE_URL}fit.json`);
+  const response = await fetch(`${import.meta.env.BASE_URL}fit.json`, DATA_FETCH);
   return response.ok ? response.json() : null;
 }
 
 export async function loadSiteData(): Promise<SiteData> {
-  const response = await fetch(`${import.meta.env.BASE_URL}eci.json`);
+  const response = await fetch(`${import.meta.env.BASE_URL}eci.json`, DATA_FETCH);
   if (!response.ok) throw new Error(`eci.json: HTTP ${response.status}`);
   return response.json();
 }
