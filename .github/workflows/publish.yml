@@ -3,8 +3,12 @@ name: Publish
 # Score every model variant from Epoch AI's daily zip, keep a snapshot if the input
 # changed, and deploy the site. Everything that is published is computed here.
 on:
+  # Daily at 10:30 Pacific, after the morning model launches in North America.
+  # GitHub often starts scheduled runs hours late, so an outside job also
+  # dispatches this workflow at 10:30 Pacific; this schedule is the fallback.
   schedule:
-    - cron: "17 5 * * *" # Epoch rebuilds the zip around 03:15 UTC
+    - cron: "30 10 * * *"
+      timezone: America/Los_Angeles
   workflow_dispatch:
   push:
     branches: [main]
