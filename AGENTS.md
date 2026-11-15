@@ -11,6 +11,7 @@ It uses Epoch AI's open benchmark data and Epoch's Capabilities Index (ECI) meth
 - Credit Epoch AI visibly on the page: the data (CC BY 4.0), the method and eci-public, linked. Say once, in one plain sentence in the About section, that ECI Live is independent and not affiliated with Epoch AI. Don't add an "unofficial" badge or label anywhere else (owner's decision).
 - General means all-round: a variant is ranked on it only with enough benchmarks covering every core area (`CORE_AREAS`, from the hub's domain tags). One rule (`web/src/eligibility.ts`) decides eligibility on every board; others are provisional (shown only if picked, styled and tagged, never ranked or counted for #1).
 - Repository text is English. Conventional Commits. License: AGPL-3.0-or-later for code.
+- PR titles are Conventional Commit subjects (`feat: ...`, `fix(scope): ...`), because a squash merge makes the title the commit on the default branch; CI checks it.
 - Public author name is Sakina; `soffits` is only the account handle.
 - Prefer maintained UI components and libraries over hand-written equivalents. Keep code small, typed, and free of dead code.
 
