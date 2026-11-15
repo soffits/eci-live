@@ -3,7 +3,7 @@ name = "eci-live"
 version = "0.1.0"
 description = "Scheduled, transparent refit of the Epoch Capabilities Index"
 readme = "README.md"
-license = "AGPL-3.0-only"
+license = "AGPL-3.0-or-later"
 authors = [{ name = "Sakina" }]
 requires-python = ">=3.13"
 dependencies = [
