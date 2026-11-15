@@ -12,6 +12,7 @@ It uses Epoch AI's open benchmark data and Epoch's Capabilities Index (ECI) meth
 - General means all-round: a variant is ranked on it only with enough benchmarks covering every core area (`CORE_AREAS`, from the hub's domain tags). One rule (`web/src/eligibility.ts`) decides eligibility on every board; others are provisional (shown only if picked, styled and tagged, never ranked or counted for #1).
 - Repository text is English. Conventional Commits. License: AGPL-3.0-or-later for code.
 - PR titles are Conventional Commit subjects (`feat: ...`, `fix(scope): ...`), because a squash merge makes the title the commit on the default branch; CI checks it.
+- Versions follow semver, and the bump comes from the commit types since the last tag, not from feel: below 1.0, `feat` or a breaking change (`!` / `BREAKING CHANGE`) is a minor bump and `fix`/`perf` a patch; from 1.0, breaking is major, `feat` minor, `fix` patch; docs/ci/chore/test alone need no release.
 - Public author name is Sakina; `soffits` is only the account handle.
 - Prefer maintained UI components and libraries over hand-written equivalents. Keep code small, typed, and free of dead code.
 
