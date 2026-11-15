@@ -2,7 +2,7 @@
   "name": "eci-live-web",
   "private": true,
   "type": "module",
-  "license": "AGPL-3.0-only",
+  "license": "AGPL-3.0-or-later",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",

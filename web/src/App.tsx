@@ -506,7 +506,7 @@ export function App({
           className={classes.footer}
         >
           <Text size="md" c="dimmed">
-            ECI Live by Sakina · code AGPL-3.0 · data Epoch AI, CC BY 4.0 · method Epoch AI
+            ECI Live by Sakina · code AGPL-3.0-or-later · data Epoch AI, CC BY 4.0 · method Epoch AI
           </Text>
           <Text size="md">
             <Anchor href={LINKS.repo}>Source and snapshot history</Anchor>

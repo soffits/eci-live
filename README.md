@@ -81,4 +81,4 @@ To preview the site, run `npm ci && npm run dev` in `web/`. The command above wr
 - **Lab logos:** [Lobe Icons](https://github.com/lobehub/lobe-icons) (MIT). Logos are
   trademarks of their owners.
 
-Built by Sakina. Code licensed under [AGPL-3.0-only](LICENSE).
+Built by Sakina. Code licensed under [AGPL-3.0-or-later](LICENSE).
